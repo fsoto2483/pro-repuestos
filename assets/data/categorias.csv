@@ -1,0 +1,8 @@
+id,nombre,descripcion,icono,color,orden
+frenos,Frenos,"Pastillas, discos, bandas, mordazas y liquido de frenos",frenos,#E03131,1
+direccion,Direccion,"Terminales, cremalleras, rotulas y bombas hidraulicas",direccion,#4C6EF5,2
+suspension,Suspension,"Amortiguadores, espirales, bujes, tijeras y bases",suspension,#7950F2,3
+motor,Motor,"Filtros, correas, empaques, bombas, sensores y termostatos",motor,#FD7E14,4
+transmision,Transmision,"Embragues, crucetas, homocineticas y rodamientos",transmision,#0CA678,5
+electrico,Electrico,"Baterias, alternadores, bujias, arranques e iluminacion",electrico,#EAB308,6
+lubricantes,Lubricantes,"Aceites sinteticos, refrigerantes, grasas y aditivos",lubricantes,#1098AD,7

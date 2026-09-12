@@ -1,0 +1,57 @@
+name: repuestos_pro
+description: "REPUESTOS PRO - Catalogo profesional de repuestos automotrices."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Gestion de estado sencilla y oficialmente recomendada para empezar.
+  provider: ^6.1.2
+  # Formato de moneda y fechas segun la region.
+  intl: ^0.20.2
+  cupertino_icons: ^1.0.8
+
+  drift: ^2.28.1
+  drift_flutter: ^0.2.4
+
+  csv: ^6.0.0
+
+  file_picker: ^8.1.2
+
+  excel: ^4.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  drift_dev: ^2.28.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/data/
+
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-ExtraBold.ttf
+          weight: 800

@@ -1,0 +1,39 @@
+id,marca_id,nombre,carroceria,ano_desde,ano_hasta
+cv-spark-gt,chevrolet,Spark GT,Hatchback,2011,2017
+cv-sail,chevrolet,Sail,Sedan,2013,2019
+cv-onix,chevrolet,Onix,Hatchback,2017,2024
+cv-tracker,chevrolet,Tracker,SUV,2020,2025
+cv-captiva,chevrolet,Captiva,SUV,2008,2018
+cv-dmax,chevrolet,Luv D-Max,Pickup,2006,2013
+rn-logan,renault,Logan,Sedan,2014,2020
+rn-sandero,renault,Sandero,Hatchback,2015,2021
+rn-stepway,renault,Stepway,Hatchback,2016,2022
+rn-duster,renault,Duster,SUV,2012,2021
+rn-kwid,renault,Kwid,Hatchback,2018,2024
+hy-accent,hyundai,Accent,Sedan,2012,2018
+hy-i10,hyundai,i10,Hatchback,2014,2020
+hy-elantra,hyundai,Elantra,Sedan,2017,2023
+hy-tucson,hyundai,Tucson,SUV,2016,2022
+ki-rio,kia,Rio,Sedan,2012,2017
+ki-picanto,kia,Picanto,Hatchback,2012,2020
+ki-cerato,kia,Cerato,Sedan,2014,2021
+ki-sportage,kia,Sportage,SUV,2016,2022
+ty-corolla,toyota,Corolla,Sedan,2014,2019
+ty-yaris,toyota,Yaris,Sedan,2018,2023
+ty-hilux,toyota,Hilux,Pickup,2016,2023
+ty-prado,toyota,Prado,SUV,2010,2020
+ni-versa,nissan,Versa,Sedan,2015,2020
+ni-march,nissan,March,Hatchback,2014,2021
+ni-frontier,nissan,Frontier,Pickup,2010,2020
+ni-qashqai,nissan,Qashqai,SUV,2018,2023
+mz-3,mazda,Mazda 3,Sedan,2015,2019
+mz-2,mazda,Mazda 2,Hatchback,2016,2021
+mz-cx5,mazda,CX-5,SUV,2017,2023
+fo-fiesta,ford,Fiesta,Hatchback,2011,2016
+fo-escape,ford,Escape,SUV,2013,2019
+fo-ranger,ford,Ranger,Pickup,2016,2022
+vw-gol,volkswagen,Gol,Hatchback,2013,2018
+vw-polo,volkswagen,Polo,Hatchback,2018,2023
+vw-amarok,volkswagen,Amarok,Pickup,2011,2021
+su-swift,suzuki,Swift,Hatchback,2018,2023
+su-vitara,suzuki,Vitara,SUV,2016,2022

@@ -1,0 +1,50 @@
+id,modelo_id,codigo,nombre,cilindrada,combustible,potencia_hp,ano_desde,ano_hasta
+cv-spark-gt-b12d1,cv-spark-gt,B12D1,1.2 16V B12D1,1.2,Gasolina,80,2011,2017
+cv-sail-l2b,cv-sail,L2B,1.4 16V L2B,1.4,Gasolina,98,2013,2019
+cv-onix-lde,cv-onix,LDE,1.4 16V LDE,1.4,Gasolina,98,2017,2021
+cv-onix-lih,cv-onix,LIH,1.0 Turbo LIH,1.0,Gasolina,116,2020,2024
+cv-tracker-lih,cv-tracker,LIH,1.2 Turbo LIH,1.2,Gasolina,132,2020,2025
+cv-captiva-le9,cv-captiva,LE9,2.4 16V LE9,2.4,Gasolina,167,2008,2018
+cv-dmax-4jj1,cv-dmax,4JJ1,3.0 TDI 4JJ1,3.0,Diesel,163,2006,2013
+cv-dmax-c24se,cv-dmax,C24SE,2.4 16V C24SE,2.4,Gasolina,130,2006,2013
+rn-logan-k4m,rn-logan,K4M,1.6 16V K4M,1.6,Gasolina,105,2014,2020
+rn-sandero-k4m,rn-sandero,K4M,1.6 16V K4M,1.6,Gasolina,105,2015,2019
+rn-sandero-h4m,rn-sandero,H4M,1.6 16V H4M,1.6,Gasolina,115,2019,2021
+rn-stepway-h4m,rn-stepway,H4M,1.6 16V H4M,1.6,Gasolina,115,2016,2022
+rn-duster-k4m,rn-duster,K4M,1.6 16V K4M,1.6,Gasolina,105,2012,2021
+rn-duster-f4r,rn-duster,F4R,2.0 16V F4R,2.0,Gasolina,138,2012,2021
+rn-kwid-b4d,rn-kwid,B4D,1.0 12V B4D,1.0,Gasolina,66,2018,2024
+hy-accent-g4lc,hy-accent,G4LC,1.4 16V G4LC,1.4,Gasolina,100,2012,2018
+hy-accent-g4fg,hy-accent,G4FG,1.6 16V G4FG,1.6,Gasolina,123,2012,2018
+hy-i10-g4la,hy-i10,G4LA,1.2 16V G4LA,1.2,Gasolina,87,2014,2020
+hy-elantra-g4fg,hy-elantra,G4FG,1.6 16V G4FG,1.6,Gasolina,128,2017,2023
+hy-elantra-g4nb,hy-elantra,G4NB,1.8 16V G4NB,1.8,Gasolina,147,2017,2020
+hy-tucson-g4na,hy-tucson,G4NA,2.0 16V G4NA,2.0,Gasolina,155,2016,2022
+hy-tucson-d4ha,hy-tucson,D4HA,2.0 CRDi D4HA,2.0,Diesel,185,2016,2022
+ki-rio-g4lc,ki-rio,G4LC,1.4 16V G4LC,1.4,Gasolina,100,2012,2017
+ki-picanto-g4la,ki-picanto,G4LA,1.2 16V G4LA,1.2,Gasolina,87,2012,2020
+ki-cerato-g4fg,ki-cerato,G4FG,1.6 16V G4FG,1.6,Gasolina,128,2014,2021
+ki-sportage-g4na,ki-sportage,G4NA,2.0 16V G4NA,2.0,Gasolina,155,2016,2022
+ki-sportage-d4ha,ki-sportage,D4HA,2.0 CRDi D4HA,2.0,Diesel,185,2016,2022
+ty-corolla-2zr,ty-corolla,2ZR-FE,1.8 16V 2ZR-FE,1.8,Gasolina,140,2014,2019
+ty-yaris-2nr,ty-yaris,2NR-FE,1.5 16V 2NR-FE,1.5,Gasolina,107,2018,2023
+ty-hilux-2gd,ty-hilux,2GD-FTV,2.4 TDI 2GD-FTV,2.4,Diesel,150,2016,2023
+ty-hilux-1gd,ty-hilux,1GD-FTV,2.8 TDI 1GD-FTV,2.8,Diesel,177,2016,2023
+ty-prado-1gr,ty-prado,1GR-FE,4.0 V6 1GR-FE,4.0,Gasolina,271,2010,2020
+ni-versa-hr16,ni-versa,HR16DE,1.6 16V HR16DE,1.6,Gasolina,118,2015,2020
+ni-march-hr16,ni-march,HR16DE,1.6 16V HR16DE,1.6,Gasolina,107,2014,2021
+ni-frontier-yd25,ni-frontier,YD25DDTi,2.5 TDI YD25DDTi,2.5,Diesel,190,2010,2020
+ni-frontier-qr25,ni-frontier,QR25DE,2.5 16V QR25DE,2.5,Gasolina,152,2010,2020
+ni-qashqai-mr20,ni-qashqai,MR20DD,2.0 16V MR20DD,2.0,Gasolina,141,2018,2023
+mz-3-pevps,mz-3,PE-VPS,2.0 Skyactiv-G,2.0,Gasolina,155,2015,2019
+mz-2-p5vps,mz-2,P5-VPS,1.5 Skyactiv-G,1.5,Gasolina,113,2016,2021
+mz-cx5-pyvps,mz-cx5,PY-VPS,2.5 Skyactiv-G,2.5,Gasolina,190,2017,2023
+fo-fiesta-duratec,fo-fiesta,Duratec,1.6 16V Duratec,1.6,Gasolina,120,2011,2016
+fo-escape-ecoboost,fo-escape,EcoBoost,2.0 EcoBoost,2.0,Gasolina,240,2013,2019
+fo-ranger-puma32,fo-ranger,Puma,3.2 TDCi Puma,3.2,Diesel,200,2016,2022
+fo-ranger-puma22,fo-ranger,Puma,2.2 TDCi Puma,2.2,Diesel,160,2016,2022
+vw-gol-ea111,vw-gol,EA111,1.6 8V EA111,1.6,Gasolina,101,2013,2018
+vw-polo-ea211,vw-polo,EA211,1.6 16V EA211,1.6,Gasolina,110,2018,2023
+vw-amarok-tdi,vw-amarok,CDCA,2.0 TDI biturbo,2.0,Diesel,180,2011,2021
+su-swift-k12c,su-swift,K12C,1.2 Dualjet K12C,1.2,Gasolina,90,2018,2023
+su-vitara-m16a,su-vitara,M16A,1.6 16V M16A,1.6,Gasolina,120,2016,2022
