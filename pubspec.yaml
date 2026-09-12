@@ -41,6 +41,7 @@ flutter:
 
   assets:
     - assets/data/
+    - assets/images/
 
   fonts:
     - family: Manrope

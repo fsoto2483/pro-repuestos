@@ -325,17 +325,19 @@ class _BrandPanel extends StatelessWidget {
           ),
         ];
 
+
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: AppColors.brandGradient,
-        ),
-      ),
+      decoration: const BoxDecoration(),
       child: Stack(
         children: <Widget>[
-          Positioned(
+          Positioned.fill(
+        child: Image.asset(
+          'assets/images/login_bg.png',
+          fit: BoxFit.cover,
+        ),
+      ),
+
+          Positioned.fill(
             right: -80,
             top: -60,
             child: Container(
@@ -447,38 +449,61 @@ class _MobileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.55,
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 36, 24, 40),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: AppColors.brandGradient,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const AppLogo(size: 44, onDark: true),
-          const SizedBox(height: 26),
-          const Text(
-            'El repuesto correcto,\na la primera.',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 27,
-              height: 1.2,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.8,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+
+          // Imagen
+          Image.asset(
+            'assets/images/login_bg.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+
+          // Oscurece ligeramente
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.25),
+                  Colors.black.withOpacity(0.65),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Catalogo profesional de repuestos automotrices.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.68),
-              fontSize: 14,
-              height: 1.45,
+
+          // Texto encima
+          const Positioned(
+            left: 24,
+            right: 24,
+            bottom: 30,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '\n',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
