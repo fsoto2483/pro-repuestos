@@ -73,16 +73,32 @@ class _LoginScreenState extends State<LoginScreen> {
       body: wide
           ? Row(
               children: <Widget>[
-                const Expanded(flex: 5, child: _BrandPanel()),
+                const Expanded(flex: 8, child: _BrandPanel()),
                 Expanded(
                   flex: 4,
                   child: Container(
-                    color: Theme.of(context).colorScheme.surface,
+                    color: AppColors.ink,
                     child: Center(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(48),
-                        child: ConstrainedBox(
+                        
+                        child: Container(
                           constraints: const BoxConstraints(maxWidth: 420),
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1F2937),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.08),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.35),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
+                              ),
+                            ],
+                          ),
                           child: _form(context),
                         ),
                       ),
@@ -98,9 +114,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     const _MobileHeader(),
                     Container(
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: const BorderRadius.vertical(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1E293B), // azul oscuro elegante
+                        borderRadius: BorderRadius.vertical(
                           top: Radius.circular(28),
                         ),
                       ),
@@ -131,24 +147,33 @@ class _LoginScreenState extends State<LoginScreen> {
         children: <Widget>[
           Text(
             _isRegistering ? 'Crea tu cuenta' : 'Inicia sesion',
-            style: theme.textTheme.headlineMedium,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: Colors.white,
+            ),
           ),
+          
           const SizedBox(height: 6),
           Text(
-            _isRegistering
-                ? 'Registra tu taller y accede al catalogo completo.'
-                : 'Entra para consultar precios, stock y cotizar repuestos.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.slate),
+            'Accede a tu cuenta',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white70,
+            ),         
           ),
           const SizedBox(height: 26),
 
           OutlinedButton.icon(
-            onPressed: busy
-                ? null
-                : () => context.read<AuthController>().signInWithGoogle(),
-            icon: const _GoogleMark(),
-            label: const Text('Continuar con Google'),
-          ),
+  onPressed: busy
+      ? null
+      : () => context.read<AuthController>().signInWithGoogle(),
+  icon: const _GoogleMark(),
+  label: const Text(
+    'Continuar con Google',
+    style: TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.w600,
+    ),
+  ),
+),
 
           const SizedBox(height: 22),
           Row(
@@ -157,9 +182,11 @@ class _LoginScreenState extends State<LoginScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  'o con tu correo',
-                  style: theme.textTheme.bodySmall,
-                ),
+  'o con tu correo',
+  style: theme.textTheme.bodySmall?.copyWith(
+    color: Colors.white70,
+  ),
+),
               ),
               const Expanded(child: Divider()),
             ],
@@ -290,10 +317,12 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
 
+          /*
           if (!_isRegistering) ...<Widget>[
             const SizedBox(height: 8),
             _DemoCard(onUse: busy ? null : _useDemoAccount),
           ],
+          */
         ],
       ),
     );
@@ -308,7 +337,7 @@ class _BrandPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     const List<(IconData, String, String)> highlights =
         <(IconData, String, String)>[
-          (
+          /*(
             Icons.inventory_2_rounded,
             'Catalogo verificado',
             'Referencias con SKU y numero OEM para no equivocarte.',
@@ -322,7 +351,7 @@ class _BrandPanel extends StatelessWidget {
             Icons.verified_user_rounded,
             'Marcas homologadas',
             'Bosch, Brembo, Monroe, NGK, Gates y mas, con garantia.',
-          ),
+          ),*/
         ];
 
 
@@ -331,13 +360,17 @@ class _BrandPanel extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           Positioned.fill(
-        child: Image.asset(
-          'assets/images/login_bg.png',
-          fit: BoxFit.cover,
-        ),
-      ),
+  child: Transform.scale(
+    scale: 1.0,
+    child: Image.asset(
+      'assets/images/login_bg1.png',
+      fit: BoxFit.contain,
+      alignment: const Alignment(0.2, 0.5),
+    ),
+  ),
+),
 
-          Positioned.fill(
+          /*Positioned.fill(
             right: -80,
             top: -60,
             child: Container(
@@ -348,7 +381,7 @@ class _BrandPanel extends StatelessWidget {
                 color: AppColors.brand.withValues(alpha: 0.12),
               ),
             ),
-          ),
+          ),*/
           Positioned(
             right: -60,
             bottom: -40,
@@ -364,10 +397,10 @@ class _BrandPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const AppLogo(size: 52, onDark: true),
-                const SizedBox(height: 40),
+                
+                const SizedBox(height: 20),
                 const Text(
-                  'El repuesto correcto,\na la primera.',
+                  '\n',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 40,
@@ -377,7 +410,7 @@ class _BrandPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text(
+                /*Text(
                   'Catalogo profesional de repuestos automotrices para talleres '
                   'y almacenes.',
                   style: TextStyle(
@@ -385,7 +418,7 @@ class _BrandPanel extends StatelessWidget {
                     fontSize: 16,
                     height: 1.5,
                   ),
-                ),
+                ),*/
                 const SizedBox(height: 44),
                 for (final (IconData icon, String title, String body)
                     in highlights)
@@ -450,7 +483,7 @@ class _MobileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.55,
+      height: MediaQuery.of(context).size.height * 0.51,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
@@ -462,7 +495,8 @@ class _MobileHeader extends StatelessWidget {
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
           ),
-
+          
+          /*
           // Oscurece ligeramente
           Container(
             decoration: BoxDecoration(
@@ -476,6 +510,7 @@ class _MobileHeader extends StatelessWidget {
               ),
             ),
           ),
+          */
 
           // Texto encima
           const Positioned(
@@ -595,24 +630,21 @@ class _GoogleMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
+      width: 20,
+      height: 20,
+      padding: const EdgeInsets.all(3),
       decoration: const BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
         boxShadow: <BoxShadow>[
-          BoxShadow(color: Color(0x1A000000), blurRadius: 2),
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 2,
+          ),
         ],
       ),
-      child: const Text(
-        'G',
-        style: TextStyle(
-          color: Color(0xFF4285F4),
-          fontSize: 15,
-          height: 1.1,
-          fontWeight: FontWeight.w800,
-        ),
+      child: Image.asset(
+        'assets/icons/Google.png',
       ),
     );
   }
