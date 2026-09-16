@@ -72,7 +72,7 @@ class PromoBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                /*const Text(
                   'Hasta 20 % de descuento\nen frenos y suspension',
                   style: TextStyle(
                     color: Colors.white,
@@ -99,7 +99,7 @@ class PromoBanner extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                   ),
                   child: const Text('Ver ofertas'),
-                ),
+                ),*/
               ],
             ),
           ),

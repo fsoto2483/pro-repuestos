@@ -3720,24 +3720,26 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   ]);
 }
 
-typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
-  required String id,
-  required String name,
-  Value<String> description,
-  Value<String> iconKey,
-  Value<String> colorHex,
-  Value<int> sortOrder,
-  Value<int> rowid,
-});
-typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
-  Value<String> id,
-  Value<String> name,
-  Value<String> description,
-  Value<String> iconKey,
-  Value<String> colorHex,
-  Value<int> sortOrder,
-  Value<int> rowid,
-});
+typedef $$CategoriesTableCreateCompanionBuilder =
+    CategoriesCompanion Function({
+      required String id,
+      required String name,
+      Value<String> description,
+      Value<String> iconKey,
+      Value<String> colorHex,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
+typedef $$CategoriesTableUpdateCompanionBuilder =
+    CategoriesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> description,
+      Value<String> iconKey,
+      Value<String> colorHex,
+      Value<int> sortOrder,
+      Value<int> rowid,
+    });
 
 final class $$CategoriesTableReferences
     extends BaseReferences<_$AppDatabase, $CategoriesTable, CategoryRow> {
@@ -3746,7 +3748,7 @@ final class $$CategoriesTableReferences
   static MultiTypedResultKey<$ProductsTable, List<ProductRow>>
   _productsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.products,
-    aliasName: 'categories__id__products__category_id',
+    aliasName: $_aliasNameGenerator(db.categories.id, db.products.categoryId),
   );
 
   $$ProductsTableProcessedTableManager get productsRefs {
@@ -3987,7 +3989,7 @@ class $$CategoriesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$CategoriesTable, CategoryRow>(table),
+                  e.readTable(table),
                   $$CategoriesTableReferences(db, table, e),
                 ),
               )
@@ -4040,22 +4042,24 @@ typedef $$CategoriesTableProcessedTableManager =
       CategoryRow,
       PrefetchHooks Function({bool productsRefs})
     >;
-typedef $$PartBrandsTableCreateCompanionBuilder = PartBrandsCompanion Function({
-  required String id,
-  required String name,
-  Value<String> country,
-  Value<String> tier,
-  Value<String?> logoUrl,
-  Value<int> rowid,
-});
-typedef $$PartBrandsTableUpdateCompanionBuilder = PartBrandsCompanion Function({
-  Value<String> id,
-  Value<String> name,
-  Value<String> country,
-  Value<String> tier,
-  Value<String?> logoUrl,
-  Value<int> rowid,
-});
+typedef $$PartBrandsTableCreateCompanionBuilder =
+    PartBrandsCompanion Function({
+      required String id,
+      required String name,
+      Value<String> country,
+      Value<String> tier,
+      Value<String?> logoUrl,
+      Value<int> rowid,
+    });
+typedef $$PartBrandsTableUpdateCompanionBuilder =
+    PartBrandsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> country,
+      Value<String> tier,
+      Value<String?> logoUrl,
+      Value<int> rowid,
+    });
 
 final class $$PartBrandsTableReferences
     extends BaseReferences<_$AppDatabase, $PartBrandsTable, PartBrandRow> {
@@ -4064,7 +4068,7 @@ final class $$PartBrandsTableReferences
   static MultiTypedResultKey<$ProductsTable, List<ProductRow>>
   _productsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.products,
-    aliasName: 'part_brands__id__products__part_brand_id',
+    aliasName: $_aliasNameGenerator(db.partBrands.id, db.products.partBrandId),
   );
 
   $$ProductsTableProcessedTableManager get productsRefs {
@@ -4286,7 +4290,7 @@ class $$PartBrandsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$PartBrandsTable, PartBrandRow>(table),
+                  e.readTable(table),
                   $$PartBrandsTableReferences(db, table, e),
                 ),
               )
@@ -4363,7 +4367,10 @@ final class $$VehicleMakesTableReferences
   static MultiTypedResultKey<$VehicleModelsTable, List<VehicleModelRow>>
   _vehicleModelsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.vehicleModels,
-    aliasName: 'vehicle_makes__id__vehicle_models__make_id',
+    aliasName: $_aliasNameGenerator(
+      db.vehicleMakes.id,
+      db.vehicleModels.makeId,
+    ),
   );
 
   $$VehicleModelsTableProcessedTableManager get vehicleModelsRefs {
@@ -4551,7 +4558,7 @@ class $$VehicleMakesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$VehicleMakesTable, VehicleMakeRow>(table),
+                  e.readTable(table),
                   $$VehicleMakesTableReferences(db, table, e),
                 ),
               )
@@ -4637,7 +4644,9 @@ final class $$VehicleModelsTableReferences
   );
 
   static $VehicleMakesTable _makeIdTable(_$AppDatabase db) =>
-      db.vehicleMakes.createAlias('vehicle_models__make_id__vehicle_makes__id');
+      db.vehicleMakes.createAlias(
+        $_aliasNameGenerator(db.vehicleModels.makeId, db.vehicleMakes.id),
+      );
 
   $$VehicleMakesTableProcessedTableManager get makeId {
     final $_column = $_itemColumn<String>('make_id')!;
@@ -4657,7 +4666,7 @@ final class $$VehicleModelsTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.engines,
-    aliasName: 'vehicle_models__id__engines__model_id',
+    aliasName: $_aliasNameGenerator(db.vehicleModels.id, db.engines.modelId),
   );
 
   $$EnginesTableProcessedTableManager get enginesRefs {
@@ -4675,7 +4684,7 @@ final class $$VehicleModelsTableReferences
   static MultiTypedResultKey<$FitmentsTable, List<FitmentRow>>
   _fitmentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.fitments,
-    aliasName: 'vehicle_models__id__fitments__model_id',
+    aliasName: $_aliasNameGenerator(db.vehicleModels.id, db.fitments.modelId),
   );
 
   $$FitmentsTableProcessedTableManager get fitmentsRefs {
@@ -5024,7 +5033,7 @@ class $$VehicleModelsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$VehicleModelsTable, VehicleModelRow>(table),
+                  e.readTable(table),
                   $$VehicleModelsTableReferences(db, table, e),
                 ),
               )
@@ -5054,15 +5063,19 @@ class $$VehicleModelsTableTableManager
                         >
                       >(state) {
                         if (makeId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.makeId,
-                            referencedTable: $$VehicleModelsTableReferences
-                                ._makeIdTable(db),
-                            referencedColumn: $$VehicleModelsTableReferences
-                                ._makeIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.makeId,
+                                    referencedTable:
+                                        $$VehicleModelsTableReferences
+                                            ._makeIdTable(db),
+                                    referencedColumn:
+                                        $$VehicleModelsTableReferences
+                                            ._makeIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
                         }
 
                         return state;
@@ -5133,37 +5146,41 @@ typedef $$VehicleModelsTableProcessedTableManager =
       VehicleModelRow,
       PrefetchHooks Function({bool makeId, bool enginesRefs, bool fitmentsRefs})
     >;
-typedef $$EnginesTableCreateCompanionBuilder = EnginesCompanion Function({
-  required String id,
-  required String modelId,
-  required String code,
-  required String name,
-  Value<double> displacement,
-  Value<String> fuel,
-  Value<int> horsepower,
-  required int yearFrom,
-  required int yearTo,
-  Value<int> rowid,
-});
-typedef $$EnginesTableUpdateCompanionBuilder = EnginesCompanion Function({
-  Value<String> id,
-  Value<String> modelId,
-  Value<String> code,
-  Value<String> name,
-  Value<double> displacement,
-  Value<String> fuel,
-  Value<int> horsepower,
-  Value<int> yearFrom,
-  Value<int> yearTo,
-  Value<int> rowid,
-});
+typedef $$EnginesTableCreateCompanionBuilder =
+    EnginesCompanion Function({
+      required String id,
+      required String modelId,
+      required String code,
+      required String name,
+      Value<double> displacement,
+      Value<String> fuel,
+      Value<int> horsepower,
+      required int yearFrom,
+      required int yearTo,
+      Value<int> rowid,
+    });
+typedef $$EnginesTableUpdateCompanionBuilder =
+    EnginesCompanion Function({
+      Value<String> id,
+      Value<String> modelId,
+      Value<String> code,
+      Value<String> name,
+      Value<double> displacement,
+      Value<String> fuel,
+      Value<int> horsepower,
+      Value<int> yearFrom,
+      Value<int> yearTo,
+      Value<int> rowid,
+    });
 
 final class $$EnginesTableReferences
     extends BaseReferences<_$AppDatabase, $EnginesTable, EngineRow> {
   $$EnginesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $VehicleModelsTable _modelIdTable(_$AppDatabase db) =>
-      db.vehicleModels.createAlias('engines__model_id__vehicle_models__id');
+      db.vehicleModels.createAlias(
+        $_aliasNameGenerator(db.engines.modelId, db.vehicleModels.id),
+      );
 
   $$VehicleModelsTableProcessedTableManager get modelId {
     final $_column = $_itemColumn<String>('model_id')!;
@@ -5182,7 +5199,7 @@ final class $$EnginesTableReferences
   static MultiTypedResultKey<$FitmentsTable, List<FitmentRow>>
   _fitmentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.fitments,
-    aliasName: 'engines__id__fitments__engine_id',
+    aliasName: $_aliasNameGenerator(db.engines.id, db.fitments.engineId),
   );
 
   $$FitmentsTableProcessedTableManager get fitmentsRefs {
@@ -5532,7 +5549,7 @@ class $$EnginesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$EnginesTable, EngineRow>(table),
+                  e.readTable(table),
                   $$EnginesTableReferences(db, table, e),
                 ),
               )
@@ -5558,16 +5575,17 @@ class $$EnginesTableTableManager
                     >
                   >(state) {
                     if (modelId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.modelId,
-                        referencedTable: $$EnginesTableReferences._modelIdTable(
-                          db,
-                        ),
-                        referencedColumn: $$EnginesTableReferences
-                            ._modelIdTable(db)
-                            .id,
-                      ) as T;
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.modelId,
+                                referencedTable: $$EnginesTableReferences
+                                    ._modelIdTable(db),
+                                referencedColumn: $$EnginesTableReferences
+                                    ._modelIdTable(db)
+                                    .id,
+                              )
+                              as T;
                     }
 
                     return state;
@@ -5611,49 +5629,53 @@ typedef $$EnginesTableProcessedTableManager =
       EngineRow,
       PrefetchHooks Function({bool modelId, bool fitmentsRefs})
     >;
-typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({
-  required String id,
-  required String sku,
-  required String oem,
-  required String name,
-  Value<String> description,
-  required String categoryId,
-  required String partBrandId,
-  required double price,
-  Value<double?> previousPrice,
-  Value<int> stock,
-  Value<int> warrantyMonths,
-  Value<double> rating,
-  Value<int> reviewCount,
-  Value<bool> isFeatured,
-  Value<String> specsJson,
-  Value<int> rowid,
-});
-typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({
-  Value<String> id,
-  Value<String> sku,
-  Value<String> oem,
-  Value<String> name,
-  Value<String> description,
-  Value<String> categoryId,
-  Value<String> partBrandId,
-  Value<double> price,
-  Value<double?> previousPrice,
-  Value<int> stock,
-  Value<int> warrantyMonths,
-  Value<double> rating,
-  Value<int> reviewCount,
-  Value<bool> isFeatured,
-  Value<String> specsJson,
-  Value<int> rowid,
-});
+typedef $$ProductsTableCreateCompanionBuilder =
+    ProductsCompanion Function({
+      required String id,
+      required String sku,
+      required String oem,
+      required String name,
+      Value<String> description,
+      required String categoryId,
+      required String partBrandId,
+      required double price,
+      Value<double?> previousPrice,
+      Value<int> stock,
+      Value<int> warrantyMonths,
+      Value<double> rating,
+      Value<int> reviewCount,
+      Value<bool> isFeatured,
+      Value<String> specsJson,
+      Value<int> rowid,
+    });
+typedef $$ProductsTableUpdateCompanionBuilder =
+    ProductsCompanion Function({
+      Value<String> id,
+      Value<String> sku,
+      Value<String> oem,
+      Value<String> name,
+      Value<String> description,
+      Value<String> categoryId,
+      Value<String> partBrandId,
+      Value<double> price,
+      Value<double?> previousPrice,
+      Value<int> stock,
+      Value<int> warrantyMonths,
+      Value<double> rating,
+      Value<int> reviewCount,
+      Value<bool> isFeatured,
+      Value<String> specsJson,
+      Value<int> rowid,
+    });
 
 final class $$ProductsTableReferences
     extends BaseReferences<_$AppDatabase, $ProductsTable, ProductRow> {
   $$ProductsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $CategoriesTable _categoryIdTable(_$AppDatabase db) =>
-      db.categories.createAlias('products__category_id__categories__id');
+      db.categories.createAlias(
+        $_aliasNameGenerator(db.products.categoryId, db.categories.id),
+      );
 
   $$CategoriesTableProcessedTableManager get categoryId {
     final $_column = $_itemColumn<String>('category_id')!;
@@ -5670,7 +5692,9 @@ final class $$ProductsTableReferences
   }
 
   static $PartBrandsTable _partBrandIdTable(_$AppDatabase db) =>
-      db.partBrands.createAlias('products__part_brand_id__part_brands__id');
+      db.partBrands.createAlias(
+        $_aliasNameGenerator(db.products.partBrandId, db.partBrands.id),
+      );
 
   $$PartBrandsTableProcessedTableManager get partBrandId {
     final $_column = $_itemColumn<String>('part_brand_id')!;
@@ -5689,7 +5713,7 @@ final class $$ProductsTableReferences
   static MultiTypedResultKey<$ProductImagesTable, List<ProductImageRow>>
   _productImagesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.productImages,
-    aliasName: 'products__id__product_images__product_id',
+    aliasName: $_aliasNameGenerator(db.products.id, db.productImages.productId),
   );
 
   $$ProductImagesTableProcessedTableManager get productImagesRefs {
@@ -5707,7 +5731,7 @@ final class $$ProductsTableReferences
   static MultiTypedResultKey<$FitmentsTable, List<FitmentRow>>
   _fitmentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.fitments,
-    aliasName: 'products__id__fitments__product_id',
+    aliasName: $_aliasNameGenerator(db.products.id, db.fitments.productId),
   );
 
   $$FitmentsTableProcessedTableManager get fitmentsRefs {
@@ -6276,7 +6300,7 @@ class $$ProductsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$ProductsTable, ProductRow>(table),
+                  e.readTable(table),
                   $$ProductsTableReferences(db, table, e),
                 ),
               )
@@ -6311,26 +6335,30 @@ class $$ProductsTableTableManager
                         >
                       >(state) {
                         if (categoryId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.categoryId,
-                            referencedTable: $$ProductsTableReferences
-                                ._categoryIdTable(db),
-                            referencedColumn: $$ProductsTableReferences
-                                ._categoryIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryId,
+                                    referencedTable: $$ProductsTableReferences
+                                        ._categoryIdTable(db),
+                                    referencedColumn: $$ProductsTableReferences
+                                        ._categoryIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
                         }
                         if (partBrandId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.partBrandId,
-                            referencedTable: $$ProductsTableReferences
-                                ._partBrandIdTable(db),
-                            referencedColumn: $$ProductsTableReferences
-                                ._partBrandIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.partBrandId,
+                                    referencedTable: $$ProductsTableReferences
+                                        ._partBrandIdTable(db),
+                                    referencedColumn: $$ProductsTableReferences
+                                        ._partBrandIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
                         }
 
                         return state;
@@ -6435,7 +6463,9 @@ final class $$ProductImagesTableReferences
   );
 
   static $ProductsTable _productIdTable(_$AppDatabase db) =>
-      db.products.createAlias('product_images__product_id__products__id');
+      db.products.createAlias(
+        $_aliasNameGenerator(db.productImages.productId, db.products.id),
+      );
 
   $$ProductsTableProcessedTableManager get productId {
     final $_column = $_itemColumn<String>('product_id')!;
@@ -6664,7 +6694,7 @@ class $$ProductImagesTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$ProductImagesTable, ProductImageRow>(table),
+                  e.readTable(table),
                   $$ProductImagesTableReferences(db, table, e),
                 ),
               )
@@ -6690,15 +6720,17 @@ class $$ProductImagesTableTableManager
                     >
                   >(state) {
                     if (productId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.productId,
-                        referencedTable: $$ProductImagesTableReferences
-                            ._productIdTable(db),
-                        referencedColumn: $$ProductImagesTableReferences
-                            ._productIdTable(db)
-                            .id,
-                      ) as T;
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.productId,
+                                referencedTable: $$ProductImagesTableReferences
+                                    ._productIdTable(db),
+                                referencedColumn: $$ProductImagesTableReferences
+                                    ._productIdTable(db)
+                                    .id,
+                              )
+                              as T;
                     }
 
                     return state;
@@ -6726,31 +6758,33 @@ typedef $$ProductImagesTableProcessedTableManager =
       ProductImageRow,
       PrefetchHooks Function({bool productId})
     >;
-typedef $$FitmentsTableCreateCompanionBuilder = FitmentsCompanion Function({
-  required String id,
-  required String productId,
-  required String modelId,
-  Value<String?> engineId,
-  required int yearFrom,
-  required int yearTo,
-  Value<int> rowid,
-});
-typedef $$FitmentsTableUpdateCompanionBuilder = FitmentsCompanion Function({
-  Value<String> id,
-  Value<String> productId,
-  Value<String> modelId,
-  Value<String?> engineId,
-  Value<int> yearFrom,
-  Value<int> yearTo,
-  Value<int> rowid,
-});
+typedef $$FitmentsTableCreateCompanionBuilder =
+    FitmentsCompanion Function({
+      required String id,
+      required String productId,
+      required String modelId,
+      Value<String?> engineId,
+      required int yearFrom,
+      required int yearTo,
+      Value<int> rowid,
+    });
+typedef $$FitmentsTableUpdateCompanionBuilder =
+    FitmentsCompanion Function({
+      Value<String> id,
+      Value<String> productId,
+      Value<String> modelId,
+      Value<String?> engineId,
+      Value<int> yearFrom,
+      Value<int> yearTo,
+      Value<int> rowid,
+    });
 
 final class $$FitmentsTableReferences
     extends BaseReferences<_$AppDatabase, $FitmentsTable, FitmentRow> {
   $$FitmentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $ProductsTable _productIdTable(_$AppDatabase db) =>
-      db.products.createAlias('fitments__product_id__products__id');
+  static $ProductsTable _productIdTable(_$AppDatabase db) => db.products
+      .createAlias($_aliasNameGenerator(db.fitments.productId, db.products.id));
 
   $$ProductsTableProcessedTableManager get productId {
     final $_column = $_itemColumn<String>('product_id')!;
@@ -6767,7 +6801,9 @@ final class $$FitmentsTableReferences
   }
 
   static $VehicleModelsTable _modelIdTable(_$AppDatabase db) =>
-      db.vehicleModels.createAlias('fitments__model_id__vehicle_models__id');
+      db.vehicleModels.createAlias(
+        $_aliasNameGenerator(db.fitments.modelId, db.vehicleModels.id),
+      );
 
   $$VehicleModelsTableProcessedTableManager get modelId {
     final $_column = $_itemColumn<String>('model_id')!;
@@ -6783,8 +6819,8 @@ final class $$FitmentsTableReferences
     );
   }
 
-  static $EnginesTable _engineIdTable(_$AppDatabase db) =>
-      db.engines.createAlias('fitments__engine_id__engines__id');
+  static $EnginesTable _engineIdTable(_$AppDatabase db) => db.engines
+      .createAlias($_aliasNameGenerator(db.fitments.engineId, db.engines.id));
 
   $$EnginesTableProcessedTableManager? get engineId {
     final $_column = $_itemColumn<String>('engine_id');
@@ -7142,7 +7178,7 @@ class $$FitmentsTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$FitmentsTable, FitmentRow>(table),
+                  e.readTable(table),
                   $$FitmentsTableReferences(db, table, e),
                 ),
               )
@@ -7169,37 +7205,43 @@ class $$FitmentsTableTableManager
                         >
                       >(state) {
                         if (productId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.productId,
-                            referencedTable: $$FitmentsTableReferences
-                                ._productIdTable(db),
-                            referencedColumn: $$FitmentsTableReferences
-                                ._productIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.productId,
+                                    referencedTable: $$FitmentsTableReferences
+                                        ._productIdTable(db),
+                                    referencedColumn: $$FitmentsTableReferences
+                                        ._productIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
                         }
                         if (modelId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.modelId,
-                            referencedTable: $$FitmentsTableReferences
-                                ._modelIdTable(db),
-                            referencedColumn: $$FitmentsTableReferences
-                                ._modelIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.modelId,
+                                    referencedTable: $$FitmentsTableReferences
+                                        ._modelIdTable(db),
+                                    referencedColumn: $$FitmentsTableReferences
+                                        ._modelIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
                         }
                         if (engineId) {
-                          state = state.withJoin(
-                            currentTable: table,
-                            currentColumn: table.engineId,
-                            referencedTable: $$FitmentsTableReferences
-                                ._engineIdTable(db),
-                            referencedColumn: $$FitmentsTableReferences
-                                ._engineIdTable(db)
-                                .id,
-                          ) as T;
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.engineId,
+                                    referencedTable: $$FitmentsTableReferences
+                                        ._engineIdTable(db),
+                                    referencedColumn: $$FitmentsTableReferences
+                                        ._engineIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
                         }
 
                         return state;

@@ -18,6 +18,7 @@ import 'widgets/product_grid.dart';
 import 'widgets/promo_banner.dart';
 import 'widgets/search_bar_field.dart';
 import 'widgets/vehicle_filter.dart';
+import '../admin/import_csv_screen.dart';
 
 /// Pantalla principal: catalogo con busqueda rapida, categorias, destacados y
 /// la grilla completa de productos.
@@ -32,6 +33,7 @@ class CatalogScreen extends StatelessWidget {
     final double gutter = context.horizontalPadding;
 
     return Scaffold(
+      
       body: SafeArea(
         bottom: false,
         child: ContentWidth(
@@ -39,6 +41,7 @@ class CatalogScreen extends StatelessWidget {
             color: AppColors.brand,
             onRefresh: catalog.load,
             child: CustomScrollView(
+
               slivers: <Widget>[
                 _AppHeader(gutter: gutter),
                 SliverToBoxAdapter(
@@ -87,14 +90,14 @@ class CatalogScreen extends StatelessWidget {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: gutter),
-                        child: PromoBanner(
+                        /*child: PromoBanner(
                           onPressed: () =>
                               catalog.setSort(ProductSort.priceAsc),
-                        ),
+                        ),*/
                       ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 28)),
-                    SliverToBoxAdapter(
+                    /*const SliverToBoxAdapter(child: SizedBox(height: 28)),*/
+                    /*SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: gutter),
                         child: SectionHeader(
@@ -105,15 +108,15 @@ class CatalogScreen extends StatelessWidget {
                           onAction: onSeeAllCategories,
                         ),
                       ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 14)),
-                    SliverToBoxAdapter(
+                    ),*/
+                    /*const SliverToBoxAdapter(child: SizedBox(height: 14)),*/
+                    /*SliverToBoxAdapter(
                       child: _FeaturedRow(
                         products: catalog.featured,
                         gutter: gutter,
                       ),
-                    ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 30)),
+                    ),*/
+                    /*const SliverToBoxAdapter(child: SizedBox(height: 30)),*/
                   ],
 
                   SliverToBoxAdapter(
@@ -177,7 +180,8 @@ class _AppHeader extends StatelessWidget {
         context.watch<AuthController>().user?.firstName ?? 'Bienvenido';
 
     return SliverAppBar(
-      floating: true,
+      pinned: true,
+      floating: false,
       toolbarHeight: 74,
       automaticallyImplyLeading: false,
       titleSpacing: gutter,
@@ -190,9 +194,9 @@ class _AppHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text('Hola, $name', style: theme.textTheme.titleMedium),
+                Text('Buenos días, $name', style: theme.textTheme.titleMedium),
                 Text(
-                  'Encuentra el repuesto exacto',
+                  '¿Qué repuesto necesitas hoy?',
                   style: theme.textTheme.bodySmall,
                 ),
               ],
