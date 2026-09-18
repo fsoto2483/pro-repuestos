@@ -37,6 +37,17 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
+      # Flutter puede no preservar todo web/catalogo; forzar copia al artefacto de Hosting.
+      - name: Copy catalog images into build/web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web/catalogo
+          cp -a web/catalogo/. build/web/catalogo/
+          echo "Contenido de build/web/catalogo:"
+          find build/web/catalogo -type f | sort
+          test -n "$(find build/web/catalogo -type f | head -n 1)" \
+            || (echo "ERROR: build/web/catalogo esta vacio" && exit 1)
+
       - name: Deploy to Firebase Hosting (live)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:

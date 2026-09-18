@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin · Imágenes catálogo</title>
+  <style>
+    :root {
+      --ink: #1a1f2e;
+      --muted: #5c6578;
+      --line: #e2e6ee;
+      --bg: #f4f6fa;
+      --card: #fff;
+      --brand: #c45c26;
+      --ok: #1b7f4e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    header {
+      padding: 1.25rem 1.5rem;
+      background: var(--ink);
+      color: #fff;
+    }
+    header h1 { margin: 0; font-size: 1.15rem; font-weight: 650; }
+    header p { margin: 0.35rem 0 0; opacity: 0.75; font-size: 0.9rem; }
+    main { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 2.5rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+    .row { display: flex; gap: 0.5rem; margin-top: 0.65rem; flex-wrap: wrap; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 600;
+    }
+    button.secondary { background: var(--ink); }
+    button.ghost {
+      background: transparent;
+      color: var(--brand);
+      border: 1px solid var(--line);
+    }
+    .hint { font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; }
+    .url {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.82rem;
+      word-break: break-all;
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 0.55rem 0.65rem;
+      margin: 0.4rem 0 0;
+    }
+    .item {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.85rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .item:last-child { border-bottom: 0; }
+    .item strong { font-size: 0.95rem; }
+    .toast {
+      position: fixed;
+      bottom: 1.25rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ok);
+      color: #fff;
+      padding: 0.55rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .toast.show { opacity: 1; }
+    .empty { color: var(--muted); font-size: 0.9rem; }
+    .preview {
+      max-width: 120px;
+      max-height: 80px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin temporal · Imágenes del catálogo</h1>
+    <p>URLs públicas en Firebase Hosting · /catalogo/&lt;archivo&gt;</p>
+  </header>
+
+  <main>
+    <div class="card">
+      <label for="filename">Nombre de archivo</label>
+      <input id="filename" type="text" placeholder="ej. filtro-aceite-p-0003.jpg" autocomplete="off" />
+      <p class="url" id="preview-url">https://repuestospro-prod.web.app/catalogo/</p>
+      <div class="row">
+        <button type="button" id="btn-copy-preview">Copiar URL</button>
+        <button type="button" class="secondary" id="btn-add-list">Añadir a lista</button>
+      </div>
+      <p class="hint">
+        Coloca el archivo en <code>web/catalogo/</code>, agrégalo a
+        <code>manifest.json</code> y vuelve a desplegar Hosting.
+        Base fija: <code>https://repuestospro-prod.web.app/catalogo/</code>
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content: space-between; align-items: center; margin-top: 0;">
+        <strong>Archivos en manifest.json</strong>
+        <button type="button" class="ghost" id="btn-reload">Recargar</button>
+      </div>
+      <div id="list"><p class="empty">Cargando…</p></div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast">URL copiada</div>
+
+  <script>
+    const BASE = 'https://repuestospro-prod.web.app/catalogo/';
+    const filenameInput = document.getElementById('filename');
+    const previewUrl = document.getElementById('preview-url');
+    const listEl = document.getElementById('list');
+    const toast = document.getElementById('toast');
+    let files = [];
+
+    function fullUrl(name) {
+      const clean = String(name || '').trim().replace(/^\/+/, '');
+      return BASE + encodeURI(clean);
+    }
+
+    function updatePreview() {
+      previewUrl.textContent = fullUrl(filenameInput.value);
+    }
+
+    function showToast(msg) {
+      toast.textContent = msg || 'URL copiada';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1400);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('URL copiada');
+      } catch (_) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showToast('URL copiada');
+      }
+    }
+
+    function renderList() {
+      if (!files.length) {
+        listEl.innerHTML = '<p class="empty">manifest.json vacío. Añade nombres de archivo o usa el campo de arriba.</p>';
+        return;
+      }
+      listEl.innerHTML = '';
+      files.forEach((name) => {
+        const url = fullUrl(name);
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML =
+          '<strong></strong>' +
+          '<img class="preview" alt="" />' +
+          '<p class="url"></p>' +
+          '<div class="row"></div>';
+        item.querySelector('strong').textContent = name;
+        const img = item.querySelector('img');
+        img.src = url;
+        img.onerror = () => { img.style.display = 'none'; };
+        item.querySelector('.url').textContent = url;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Copiar URL';
+        btn.addEventListener('click', () => copyText(url));
+        item.querySelector('.row').appendChild(btn);
+        listEl.appendChild(item);
+      });
+    }
+
+    async function loadManifest() {
+      listEl.innerHTML = '<p class="empty">Cargando…</p>';
+      try {
+        const res = await fetch('manifest.json?_=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        files = Array.isArray(data)
+          ? data.map(String).filter(Boolean)
+          : [];
+      } catch (e) {
+        files = [];
+        listEl.innerHTML =
+          '<p class="empty">No se pudo leer manifest.json (' + e.message + ').</p>';
+        return;
+      }
+      renderList();
+    }
+
+    filenameInput.addEventListener('input', updatePreview);
+    document.getElementById('btn-copy-preview').addEventListener('click', () => {
+      const name = filenameInput.value.trim();
+      if (!name) {
+        showToast('Escribe un nombre de archivo');
+        return;
+      }
+      copyText(fullUrl(name));
+    });
+    document.getElementById('btn-add-list').addEventListener('click', () => {
+      const name = filenameInput.value.trim();
+      if (!name) return;
+      if (!files.includes(name)) files.push(name);
+      renderList();
+      showToast('Añadido a la lista (solo esta sesión)');
+    });
+    document.getElementById('btn-reload').addEventListener('click', loadManifest);
+
+    updatePreview();
+    loadManifest();
+  </script>
+</body>
+</html>
