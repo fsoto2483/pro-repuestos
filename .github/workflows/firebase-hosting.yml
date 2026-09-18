@@ -34,19 +34,33 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      # --pwa-strategy=none: sin service worker. El SW de Flutter cacheaba
+      # navegaciones y hacia que /catalogo/* mostrara index.html (la app).
       - name: Build web
-        run: flutter build web --release
+        run: flutter build web --release --pwa-strategy=none
 
-      # Flutter puede no preservar todo web/catalogo; forzar copia al artefacto de Hosting.
-      - name: Copy catalog images into build/web
+      - name: Copy catalog assets into build/web
         run: |
           set -euo pipefail
           mkdir -p build/web/catalogo
           cp -a web/catalogo/. build/web/catalogo/
-          echo "Contenido de build/web/catalogo:"
+          # Por si Flutter genero un SW residual, eliminarlo del artefacto.
+          rm -f build/web/flutter_service_worker.js
+          echo "Archivos estaticos de catalogo a desplegar:"
           find build/web/catalogo -type f | sort
-          test -n "$(find build/web/catalogo -type f | head -n 1)" \
-            || (echo "ERROR: build/web/catalogo esta vacio" && exit 1)
+          test -f build/web/catalogo/admin.html
+          test -n "$(find build/web/catalogo -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.html' -o -iname '*.json' \) | head -n 1)"
+
+      - name: Verify catalog assets are not SPA-only
+        run: |
+          set -euo pipefail
+          # Asegurar que no se despliega un SW que controle /catalogo
+          if [ -f build/web/flutter_service_worker.js ]; then
+            echo "ERROR: flutter_service_worker.js no debe existir en el deploy"
+            exit 1
+          fi
+          ls -la build/web/catalogo/90915-YZZD2.jpg
+          file build/web/catalogo/90915-YZZD2.jpg
 
       - name: Deploy to Firebase Hosting (live)
         uses: FirebaseExtended/action-hosting-deploy@v0

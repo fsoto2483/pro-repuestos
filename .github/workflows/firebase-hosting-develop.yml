@@ -35,7 +35,15 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release
+        run: flutter build web --release --pwa-strategy=none
+
+      - name: Copy catalog assets into build/web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web/catalogo
+          cp -a web/catalogo/. build/web/catalogo/
+          rm -f build/web/flutter_service_worker.js
+          find build/web/catalogo -type f | sort
 
       - name: Deploy to Firebase Hosting (develop channel)
         uses: FirebaseExtended/action-hosting-deploy@v0
