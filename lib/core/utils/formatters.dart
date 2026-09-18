@@ -4,16 +4,16 @@ import 'package:intl/intl.dart';
 class Formatters {
   const Formatters._();
 
-  /// `es_CO` pone el simbolo al final ("189.000 S/"). En Colombia se escribe
+  /// `es_PE` pone el simbolo al final ("189.000 S/"). En Peru se escribe
   /// antes, asi que se fuerza el patron con `customPattern`.
   static final NumberFormat _currency = NumberFormat.currency(
     locale: 'es_PE',
     symbol: r'S/',
     decimalDigits: 2,
-    
+    customPattern: '¤#,##0.00',
   );
 
-  static final NumberFormat _integer = NumberFormat.decimalPattern('es_CO');
+  static final NumberFormat _integer = NumberFormat.decimalPattern('es_PE');
 
   /// Precio con separador de miles: 189000 -> "S/ 189.000".
   static String price(num value) => _currency.format(value);
