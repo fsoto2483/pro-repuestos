@@ -1,9 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../services/user_service.dart';
 import '../../state/auth_controller.dart';
 import '../../widgets/app_logo.dart';
 
@@ -61,6 +65,122 @@ class _LoginScreenState extends State<LoginScreen> {
       _password.text = AuthRepository.demoPassword;
     });
     context.read<AuthController>().clearError();
+  }
+
+  /// Diagnostico temporal (oculto): long-press en el titulo.
+  /// Autentica con el formulario, lee users/{uid} y muestra el resultado.
+  /// No pasa por AuthController ni altera el flujo normal de login.
+  Future<void> _runUsersDocDiag() async {
+    FocusScope.of(context).unfocus();
+    final String email = _email.text.trim();
+    final String password = _password.text;
+    if (email.isEmpty || password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Diag: completa correo y contrasena (>=6) antes de diagnosticar.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    String report;
+    try {
+      final UserCredential credential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final User? user = credential.user;
+      final String uid = user?.uid ?? '(null)';
+
+      DocumentSnapshot<Map<String, dynamic>>? snap;
+      Object? readError;
+      try {
+        snap = await FirebaseFirestore.instance
+            .collection(UserService.collectionName)
+            .doc(uid)
+            .get();
+      } catch (e) {
+        readError = e;
+      }
+
+      final bool exists = snap?.exists ?? false;
+      final Map<String, dynamic>? data = snap?.data();
+      final StringBuffer buf = StringBuffer()
+        ..writeln('=== DIAG users/{uid} ===')
+        ..writeln('FirebaseAuth.currentUser.uid: $uid')
+        ..writeln('email: ${user?.email}')
+        ..writeln('exists: $exists');
+      if (readError != null) {
+        buf
+          ..writeln('GET ERROR: $readError')
+          ..writeln('(tipo: ${readError.runtimeType})');
+      }
+      if (data != null) {
+        buf.writeln('data completa:');
+        for (final MapEntry<String, dynamic> e in data.entries) {
+          buf.writeln('  ${e.key}: ${e.value}');
+        }
+      } else if (readError == null) {
+        buf.writeln('data: null (documento ausente)');
+      }
+
+      report = buf.toString();
+
+      // Restaurar sesion limpia: no dejar Auth abierta fuera de AuthController.
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    } catch (e) {
+      report = '=== DIAG FAIL ===\n$e\n(tipo: ${e.runtimeType})';
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // loading
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Diag users/{uid}'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              report,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: report));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Diag copiado')),
+                );
+              }
+            },
+            child: const Text('Copiar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -145,10 +265,13 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            _isRegistering ? 'Crea tu cuenta' : 'Inicia sesion',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+          GestureDetector(
+            onLongPress: _runUsersDocDiag,
+            child: Text(
+              _isRegistering ? 'Crea tu cuenta' : 'Inicia sesion',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                color: Colors.white,
+              ),
             ),
           ),
           
