@@ -31,9 +31,10 @@ class AuthController extends ChangeNotifier {
   Future<bool> signInWithPassword({
     required String email,
     required String password,
-  }) => _run(
-    () => _repository.signInWithPassword(email: email, password: password),
-  );
+  }) =>
+      _run(
+        () => _repository.signInWithPassword(email: email, password: password),
+      );
 
   Future<bool> signInWithGoogle() => _run(_repository.signInWithGoogle);
 
@@ -41,13 +42,14 @@ class AuthController extends ChangeNotifier {
     required String fullName,
     required String email,
     required String password,
-  }) => _run(
-    () => _repository.registerWithPassword(
-      fullName: fullName,
-      email: email,
-      password: password,
-    ),
-  );
+  }) =>
+      _run(
+        () => _repository.registerWithPassword(
+          fullName: fullName,
+          email: email,
+          password: password,
+        ),
+      );
 
   Future<void> signOut() async {
     await _repository.signOut();
@@ -80,7 +82,8 @@ class AuthController extends ChangeNotifier {
       _status = AuthStatus.signedOut;
       notifyListeners();
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AuthController._run: $e\n$st');
       _errorMessage = 'Ocurrio un error inesperado. Intenta de nuevo.';
       _status = AuthStatus.signedOut;
       notifyListeners();

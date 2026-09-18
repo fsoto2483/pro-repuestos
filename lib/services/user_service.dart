@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:flutter/foundation.dart';
 
 import '../data/models/app_user.dart';
 import '../data/models/user_role.dart';
@@ -19,79 +20,14 @@ class UserService {
   CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection(collectionName);
 
-  // ignore: avoid_print
-  void _audit(String tag, String message) {
-    // ignore: avoid_print
-    print('[$tag] $message');
-  }
-
-  void _auditFirebaseException(String phase, FirebaseException e) {
-    _audit(
-      'RULES_CHECK',
-      'phase=$phase code=${e.code} plugin=${e.plugin} '
-      'message=${e.message} full=$e',
-    );
-    if (e.code == 'permission-denied' ||
-        (e.message?.toLowerCase().contains('permission') ?? false) ||
-        (e.message?.toLowerCase().contains('missing or insufficient') ??
-            false)) {
-      _audit(
-        'RULES_CHECK',
-        'PERMISSION REJECTED — excepcion completa: '
-        'FirebaseException(code=${e.code}, message=${e.message}, '
-        'plugin=${e.plugin}, stackTrace=${e.stackTrace})',
-      );
-    }
-  }
-
   /// Crea `users/{uid}` si no existe (rol `client`, status `active`) y
   /// siempre devuelve el perfil con rol/status leidos desde Firestore.
   Future<AppUser> ensureUserDocument(AppUser user) async {
-    final String authUid = FirebaseAuth.instance.currentUser?.uid ?? '(null)';
-    final String path = '$collectionName/${user.id}';
     final DocumentReference<Map<String, dynamic>> doc = _users.doc(user.id);
-
-    // ignore: avoid_print
-    print('[USER_GET] uid=${user.id} authUid=$authUid path=$path');
-
-    final DocumentSnapshot<Map<String, dynamic>> snap;
-    try {
-      snap = await doc.get();
-      // ignore: avoid_print
-      print(
-        '[USER_GET_OK] uid=${user.id} path=$path '
-        'exists=${snap.exists} hasData=${snap.data() != null}',
-      );
-    } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[USER_GET_FAIL] uid=${user.id} path=$path '
-        'code=${e.code} message=${e.message} plugin=${e.plugin}',
-      );
-      rethrow;
-    }
+    final DocumentSnapshot<Map<String, dynamic>> snap = await doc.get();
 
     if (!snap.exists) {
-      final Map<String, dynamic> payload = _newUserPayload(user);
-      // ignore: avoid_print
-      print(
-        '[USER_CREATE] uid=${user.id} path=$path payload=$payload',
-      );
-
-      try {
-        await doc.set(payload);
-        // ignore: avoid_print
-        print('[USER_CREATE_OK] uid=${user.id} path=$path');
-      } on FirebaseException catch (e) {
-        // ignore: avoid_print
-        print(
-          '[USER_CREATE_FAIL] uid=${user.id} path=$path '
-          'code=${e.code} message=${e.message} plugin=${e.plugin} '
-          'payload=$payload',
-        );
-        rethrow;
-      }
-
+      await doc.set(_newUserPayload(user));
       return user.copyWith(
         role: UserRole.client,
         status: UserStatus.active,
@@ -113,9 +49,8 @@ class UserService {
         );
         data['status'] = UserStatus.active.firestoreValue;
       } on FirebaseException catch (e) {
-        // ignore: avoid_print
-        print(
-          '[USER_CREATE_FAIL] backfill status uid=${user.id} path=$path '
+        debugPrint(
+          'UserService.ensureUserDocument backfill status: '
           'code=${e.code} message=${e.message}',
         );
       }
@@ -136,8 +71,6 @@ class UserService {
       'provider': user.provider.name,
       'role': UserRole.client.firestoreValue,
       'status': UserStatus.active.firestoreValue,
-      // Timestamp de cliente: evita falsos permission-denied con
-      // serverTimestamp() en reglas (`createdAt is timestamp`).
       'createdAt': now,
       'updatedAt': now,
     };
@@ -150,26 +83,10 @@ class UserService {
   /// Lee el documento del usuario autenticado (o el [uid] indicado).
   Future<AppUser?> fetchUser(String uid) async {
     if (uid.isEmpty) return null;
-    _audit('USER_READ', 'fetchUser intento GET users/$uid');
-    try {
-      final DocumentSnapshot<Map<String, dynamic>> snap =
-          await _users.doc(uid).get();
-      _audit(
-        'USER_READ',
-        'fetchUser resultado exists=${snap.exists}',
-      );
-      if (!snap.exists || snap.data() == null) return null;
-      final AppUser loaded = _fromFirestore(snap.id, snap.data()!);
-      _audit(
-        'AUTH_FLOW',
-        'fetchUser role=${loaded.role.firestoreValue} '
-        'status=${loaded.status.firestoreValue}',
-      );
-      return loaded;
-    } on FirebaseException catch (e) {
-      _auditFirebaseException('fetchUser', e);
-      rethrow;
-    }
+    final DocumentSnapshot<Map<String, dynamic>> snap =
+        await _users.doc(uid).get();
+    if (!snap.exists || snap.data() == null) return null;
+    return _fromFirestore(snap.id, snap.data()!);
   }
 
   /// Lista todos los usuarios (solo util para administradores).

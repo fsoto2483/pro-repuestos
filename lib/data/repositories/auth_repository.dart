@@ -4,8 +4,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../services/user_service.dart';
 import '../models/app_user.dart';
-import '../models/user_role.dart';
-import '../models/user_status.dart';
 
 /// Error de autenticacion con un mensaje listo para mostrar al usuario.
 class AuthException implements Exception {
@@ -40,8 +38,6 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    // ignore: avoid_print
-    print('[AUTH_FLOW] signInWithPassword START email=${email.trim()}');
     try {
       final UserCredential credential =
           await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -54,31 +50,20 @@ class AuthRepository {
           'No se pudo iniciar sesion. Intenta de nuevo.',
         );
       }
-      // ignore: avoid_print
-      print('[AUTH_FLOW] signInWithPassword Auth OK uid=${user.uid}');
       return await _completeSignIn(user);
     } on AuthException {
       rethrow;
     } on FirebaseAuthException catch (e) {
-      // ignore: avoid_print
-      print('[AUTH_FLOW] signInWithPassword Auth FAIL code=${e.code} $e');
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[RULES_CHECK] signInWithPassword FirebaseException '
-        'code=${e.code} message=${e.message} full=$e',
-      );
       throw AuthException(_mapFirebaseError(e));
     } catch (e, st) {
-      debugPrint('signInWithPassword: $e\n$st');
+      debugPrint('AuthRepository.signInWithPassword: $e\n$st');
       throw AuthException(_unexpectedMessage(e));
     }
   }
 
   Future<AppUser> signInWithGoogle() async {
-    // ignore: avoid_print
-    print('[AUTH_FLOW] signInWithGoogle START');
     try {
       final UserCredential credential;
       if (kIsWeb) {
@@ -109,8 +94,6 @@ class AuthRepository {
           'No se pudo iniciar sesion con Google.',
         );
       }
-      // ignore: avoid_print
-      print('[AUTH_FLOW] signInWithGoogle Auth OK uid=${user.uid}');
       return await _completeSignIn(user);
     } on AuthException {
       rethrow;
@@ -122,18 +105,11 @@ class AuthRepository {
         e.description ?? 'No se pudo iniciar sesion con Google.',
       );
     } on FirebaseAuthException catch (e) {
-      // ignore: avoid_print
-      print('[AUTH_FLOW] signInWithGoogle Auth FAIL code=${e.code} $e');
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[RULES_CHECK] signInWithGoogle FirebaseException '
-        'code=${e.code} message=${e.message} full=$e',
-      );
       throw AuthException(_mapFirebaseError(e));
     } catch (e, st) {
-      debugPrint('signInWithGoogle: $e\n$st');
+      debugPrint('AuthRepository.signInWithGoogle: $e\n$st');
       throw AuthException(_unexpectedMessage(e));
     }
   }
@@ -143,8 +119,6 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    // ignore: avoid_print
-    print('[AUTH_FLOW] registerWithPassword START email=${email.trim()}');
     try {
       final UserCredential credential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -157,11 +131,6 @@ class AuthRepository {
           'No se pudo crear la cuenta. Intenta de nuevo.',
         );
       }
-      // ignore: avoid_print
-      print(
-        '[AUTH_FLOW] registerWithPassword Auth OK uid=${user.uid} '
-        '(cuenta Auth creada; sigue perfil Firestore)',
-      );
 
       final String name = fullName.trim();
       if (name.isNotEmpty) {
@@ -169,8 +138,7 @@ class AuthRepository {
           await user.updateDisplayName(name);
           await user.reload();
         } catch (e) {
-          // El perfil Auth se puede completar despues; no bloquea el registro.
-          debugPrint('registerWithPassword displayName: $e');
+          debugPrint('AuthRepository.registerWithPassword displayName: $e');
         }
       }
 
@@ -179,18 +147,11 @@ class AuthRepository {
     } on AuthException {
       rethrow;
     } on FirebaseAuthException catch (e) {
-      // ignore: avoid_print
-      print('[AUTH_FLOW] registerWithPassword Auth FAIL code=${e.code} $e');
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[RULES_CHECK] registerWithPassword FirebaseException '
-        'code=${e.code} message=${e.message} full=$e',
-      );
       throw AuthException(_mapFirebaseError(e));
     } catch (e, st) {
-      debugPrint('registerWithPassword: $e\n$st');
+      debugPrint('AuthRepository.registerWithPassword: $e\n$st');
       throw AuthException(_unexpectedMessage(e));
     }
   }
@@ -210,31 +171,11 @@ class AuthRepository {
   /// Si la cuenta esta suspendida, cierra la sesion de Firebase Auth y falla
   /// con un mensaje claro para el usuario.
   Future<AppUser> _completeSignIn(User user) async {
-    // ignore: avoid_print
-    print(
-      '[AUTH_FLOW] _completeSignIn START uid=${user.uid} '
-      'email=${user.email} providers='
-      '${user.providerData.map((UserInfo p) => p.providerId).toList()}',
-    );
     try {
       final AppUser mapped = _mapFirebaseUser(user);
-      // ignore: avoid_print
-      print(
-        '[AUTH_FLOW] mapped AppUser id=${mapped.id} '
-        'roleDefault=${mapped.role.firestoreValue} '
-        'statusDefault=${mapped.status.firestoreValue}',
-      );
       final AppUser appUser = await userService.ensureUserDocument(mapped);
-      // ignore: avoid_print
-      print(
-        '[AUTH_FLOW] _completeSignIn perfil OK '
-        'role=${appUser.role.firestoreValue} '
-        'status=${appUser.status.firestoreValue}',
-      );
 
       if (appUser.isSuspended) {
-        // ignore: avoid_print
-        print('[AUTH_FLOW] usuario SUSPENDED → signOut');
         await signOut();
         throw const AuthException(
           'Tu cuenta ha sido suspendida. Contacta al administrador.',
@@ -245,21 +186,16 @@ class AuthRepository {
     } on AuthException {
       rethrow;
     } on FirebaseException catch (e) {
-      // ignore: avoid_print
-      print(
-        '[RULES_CHECK] _completeSignIn FAIL '
-        'code=${e.code} message=${e.message} plugin=${e.plugin} full=$e '
-        'stack=${e.stackTrace}',
+      debugPrint(
+        'AuthRepository._completeSignIn FirebaseException '
+        'code=${e.code} message=${e.message}',
       );
-      // Auth quedo abierta pero el perfil Firestore fallo: cerrar para no
-      // dejar una sesion a medias.
       try {
         await signOut();
       } catch (_) {}
       throw AuthException(_mapFirebaseError(e));
     } catch (e, st) {
-      // ignore: avoid_print
-      print('[AUTH_FLOW] _completeSignIn ERROR: $e\n$st');
+      debugPrint('AuthRepository._completeSignIn: $e\n$st');
       try {
         await signOut();
       } catch (_) {}
@@ -310,18 +246,15 @@ class AuthRepository {
   }
 
   String _mapFirebaseError(FirebaseException e) {
-    // Auditoria: incluir excepcion completa en el mensaje visible.
-    final String full =
-        'FirebaseException(code=${e.code}, message=${e.message}, '
-        'plugin=${e.plugin})';
     switch (e.code) {
       case 'permission-denied':
-        return 'permission-denied al sincronizar users/{uid}. $full';
+        return 'No se pudo sincronizar tu perfil. Contacta al administrador.';
       case 'unavailable':
       case 'network-request-failed':
-        return 'Sin conexion con Firestore. $full';
+        return 'Sin conexion con Firestore. Revisa tu internet.';
       default:
-        return 'Error Firestore al sincronizar perfil. $full';
+        return e.message ??
+            'No se pudo sincronizar el perfil del usuario (${e.code}).';
     }
   }
 
@@ -330,6 +263,6 @@ class AuthRepository {
     if (detail.isEmpty || detail == 'Exception') {
       return 'Ocurrio un error inesperado. Intenta de nuevo.';
     }
-    return 'No se pudo completar el acceso. $detail';
+    return 'No se pudo completar el acceso. Intenta de nuevo.';
   }
 }
