@@ -9,14 +9,14 @@ import '../../data/db/app_database.dart';
 import '../../data/import/catalog_sources.dart';
 import '../../data/import/catalog_tables.dart';
 import '../../data/import/import_report.dart';
+import '../../services/firestore_service.dart';
 import '../../state/catalog_controller.dart';
 import '../../widgets/common.dart';
 
 /// Carga masiva del catalogo desde archivos CSV o Excel.
 ///
-/// El archivo manda: lo que entre reemplaza el catalogo. Lo que tenga un error
-/// se descarta fila por fila y se reporta con el numero de fila, para poder
-/// corregirlo en Excel sin adivinar.
+/// Por defecto actualiza/agrega (upsert a Firestore). Opcionalmente puede
+/// reemplazar por completo la coleccion `products` remota.
 class BulkImportScreen extends StatefulWidget {
   const BulkImportScreen({super.key});
 
@@ -32,65 +32,163 @@ class BulkImportScreen extends StatefulWidget {
 
 class _BulkImportScreenState extends State<BulkImportScreen> {
   bool _working = false;
+  bool _replaceCatalog = false;
   ImportReport? _report;
   List<String> _pickedNames = <String>[];
 
-Future<void> _pickAndImport() async {
-  // ignore: avoid_print
-  print('[IMPORT_DEBUG] BulkImportScreen._pickAndImport INICIO');
-  final FilePickerResult? result = await FilePicker.platform.pickFiles(
-    dialogTitle: 'Archivos del catalogo',
-    type: FileType.custom,
-    allowedExtensions: <String>['csv', 'xlsx', 'xls'],
-    withData: true,
-  );
+  Future<void> _onReplaceChanged(bool value) async {
+    if (!value) {
+      setState(() => _replaceCatalog = false);
+      return;
+    }
 
-  if (result == null) {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] usuario cancelo picker');
-    return;
-  }
-
-  final List<SourceFile> files = <SourceFile>[];
-
-  for (final PlatformFile file in result.files) {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] PlatformFile name=${file.name} '
-        'bytesNull=${file.bytes == null} size=${file.size}');
-    if (file.bytes == null) continue;
-
-    files.add(
-      SourceFile(
-        name: file.name,
-        bytes: file.bytes!,
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Reemplazar catalogo completo'),
+        content: const Text(
+          'Esta accion eliminara todo el catalogo actual y lo reemplazara '
+          'con los productos del Excel.\n\n'
+          'Desea continuar?',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+            child: const Text('Continuar'),
+          ),
+        ],
       ),
     );
+
+    if (!mounted) return;
+    setState(() => _replaceCatalog = confirmed ?? false);
   }
 
-  if (!mounted) return;
+  Future<void> _pickAndImport() async {
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] BulkImportScreen._pickAndImport INICIO');
+    final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Archivos del catalogo',
+      type: FileType.custom,
+      allowedExtensions: <String>['csv', 'xlsx', 'xls'],
+      withData: true,
+    );
 
-  setState(() {
-    _working = true;
-    _report = null;
-    _pickedNames = files.map((f) => f.name).toList();
-  });
+    if (result == null) {
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] usuario cancelo picker');
+      return;
+    }
 
-  // ignore: avoid_print
-  print('[IMPORT_DEBUG] enviando a CatalogController.importFiles '
-      'count=${files.length}');
-  final ImportReport report =
-      await context.read<CatalogController>().importFiles(files);
-  // ignore: avoid_print
-  print('[IMPORT_DEBUG] BulkImportScreen report.applied=${report.applied} '
-      'fatal=${report.fatalError} summary=${report.summary}');
+    final List<SourceFile> files = <SourceFile>[];
 
-  if (!mounted) return;
+    for (final PlatformFile file in result.files) {
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] PlatformFile name=${file.name} '
+          'bytesNull=${file.bytes == null} size=${file.size}');
+      if (file.bytes == null) continue;
 
-  setState(() {
-    _working = false;
-    _report = report;
-  });
-}
+      files.add(
+        SourceFile(
+          name: file.name,
+          bytes: file.bytes!,
+        ),
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _working = true;
+      _report = null;
+      _pickedNames = files.map((SourceFile f) => f.name).toList();
+    });
+
+    try {
+      if (_replaceCatalog) {
+        // ignore: avoid_print
+        print('[IMPORT]\nModo: REEMPLAZAR CATALOGO');
+        try {
+          final int deleted =
+              await const FirestoreService().deleteAllProducts();
+          // ignore: avoid_print
+          print('[IMPORT]\nProductos eliminados: $deleted');
+        } catch (e) {
+          // ignore: avoid_print
+          print('[IMPORT]\nError al eliminar productos: $e');
+          if (!mounted) return;
+          setState(() {
+            _working = false;
+            _report = ImportReport.failure(
+              'No se pudo eliminar el catalogo en Firestore. '
+              'La importacion no se inicio. Detalle: $e',
+            );
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Error al eliminar el catalogo. No se importo nada.',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] enviando a CatalogController.importFiles '
+          'count=${files.length}');
+      final ImportReport report =
+          await context.read<CatalogController>().importFiles(files);
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] BulkImportScreen report.applied=${report.applied} '
+          'fatal=${report.fatalError} summary=${report.summary}');
+
+      if (_replaceCatalog) {
+        final int imported = report.results
+            .where((TableResult r) => r.table == CatalogTable.products)
+            .fold<int>(0, (int sum, TableResult r) => sum + r.accepted);
+        // ignore: avoid_print
+        print('[IMPORT]\nProductos importados: $imported');
+        // ignore: avoid_print
+        print('[IMPORT]\nProceso completado');
+      }
+
+      if (!mounted) return;
+
+      if (!report.applied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              report.fatalError ??
+                  'La importacion fallo. Revisa el reporte de errores.',
+            ),
+          ),
+        );
+      }
+
+      setState(() {
+        _working = false;
+        _report = report;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _working = false;
+        _report = ImportReport.failure(
+          'Error durante la importacion: $e',
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error durante la importacion: $e')),
+      );
+    }
+  }
 
   Future<void> _restore() async {
     final bool? confirmed = await showDialog<bool>(
@@ -151,6 +249,22 @@ Future<void> _pickAndImport() async {
 
               _CurrentCatalog(stats: catalog.stats),
               const SizedBox(height: 20),
+
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Reemplazar catalogo completo'),
+                subtitle: Text(
+                  _replaceCatalog
+                      ? 'Se eliminaran todos los productos de Firestore '
+                          'antes de importar el Excel.'
+                      : 'Por defecto solo se actualizan y agregan productos '
+                          '(no se elimina nada).',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                value: _replaceCatalog,
+                onChanged: _working ? null : _onReplaceChanged,
+              ),
+              const SizedBox(height: 12),
 
               FilledButton.icon(
                 onPressed: _working ? null : _pickAndImport,
@@ -405,8 +519,6 @@ class _ReportView extends StatelessWidget {
                   style: theme.textTheme.labelLarge,
                 ),
                 children: <Widget>[
-                  // Un archivo roto puede generar cientos de avisos; con los
-                  // primeros ya se entiende que hay que corregir.
                   for (final ImportIssue issue in report.issues.take(60))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),

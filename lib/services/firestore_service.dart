@@ -224,6 +224,32 @@ class FirestoreService {
     await _products.doc(id).delete();
   }
 
+  /// Elimina todos los documentos de [productsCollection] en batches de 500.
+  ///
+  /// Usado por el modo "Reemplazar catalogo completo" de la carga masiva.
+  /// Devuelve la cantidad de documentos eliminados.
+  Future<int> deleteAllProducts() async {
+    final QuerySnapshot<Map<String, dynamic>> snap = await _products.get();
+    final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs =
+        List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(snap.docs);
+
+    int deleted = 0;
+    while (docs.isNotEmpty) {
+      final int take = docs.length < 500 ? docs.length : 500;
+      final List<QueryDocumentSnapshot<Map<String, dynamic>>> chunk =
+          docs.sublist(0, take);
+      docs.removeRange(0, take);
+
+      final WriteBatch batch = _db.batch();
+      for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in chunk) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      deleted += chunk.length;
+    }
+    return deleted;
+  }
+
   // ---------------------------------------------------------------- upserts
 
   /// Crea o actualiza una marca. No borra campos omitidos gracias a [merge].
