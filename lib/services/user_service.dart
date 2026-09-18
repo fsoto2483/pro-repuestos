@@ -48,116 +48,80 @@ class UserService {
   /// siempre devuelve el perfil con rol/status leidos desde Firestore.
   Future<AppUser> ensureUserDocument(AppUser user) async {
     final String authUid = FirebaseAuth.instance.currentUser?.uid ?? '(null)';
+    final String path = '$collectionName/${user.id}';
     final DocumentReference<Map<String, dynamic>> doc = _users.doc(user.id);
 
-    _audit(
-      'AUTH_FLOW',
-      'ensureUserDocument INICIO authUid=$authUid '
-      'docPath=users/${user.id} email=${user.email}',
-    );
-    _audit(
-      'RULES_CHECK',
-      'Expectativa local: allow get si isOwner; '
-      'allow create si isOwner + role=client + status=active + shape valido. '
-      'Si falla create con permission-denied → rules desplegadas no coinciden '
-      'o validacion isValidUserShape rechazo el payload.',
-    );
+    // ignore: avoid_print
+    print('[USER_GET] uid=${user.id} authUid=$authUid path=$path');
 
+    final DocumentSnapshot<Map<String, dynamic>> snap;
     try {
-      _audit('USER_READ', 'intento GET users/${user.id}');
-      final DocumentSnapshot<Map<String, dynamic>> snap = await doc.get();
-      _audit(
-        'USER_READ',
-        'resultado GET exists=${snap.exists} '
-        'hasData=${snap.data() != null}',
+      snap = await doc.get();
+      // ignore: avoid_print
+      print(
+        '[USER_GET_OK] uid=${user.id} path=$path '
+        'exists=${snap.exists} hasData=${snap.data() != null}',
       );
-
-      if (!snap.exists) {
-        final Map<String, dynamic> payload = _newUserPayload(user);
-        _audit(
-          'USER_CREATE',
-          'intento CREATE users/${user.id} keys=${payload.keys.toList()} '
-          'role=${payload['role']} status=${payload['status']} '
-          'uidField=${payload['uid']} provider=${payload['provider']} '
-          'nombreLen=${(payload['nombre'] as String?)?.length} '
-          'email=${payload['email']} '
-          'createdAtType=${payload['createdAt'].runtimeType}',
-        );
-
-        try {
-          await doc.set(payload);
-          _audit(
-            'USER_CREATE',
-            'resultado CREATE OK users/${user.id}',
-          );
-        } on FirebaseException catch (e) {
-          _audit(
-            'USER_CREATE',
-            'resultado CREATE FAIL users/${user.id}',
-          );
-          _auditFirebaseException('USER_CREATE', e);
-          rethrow;
-        }
-
-        _audit(
-          'AUTH_FLOW',
-          'perfil nuevo local role=client status=active '
-          '(sin re-read post-create)',
-        );
-        return user.copyWith(
-          role: UserRole.client,
-          status: UserStatus.active,
-        );
-      }
-
-      final Map<String, dynamic> data =
-          Map<String, dynamic>.from(snap.data() ?? <String, dynamic>{});
-
-      _audit(
-        'USER_READ',
-        'doc existente keys=${data.keys.toList()} '
-        'roleRaw=${data['role']} statusRaw=${data['status']}',
-      );
-
-      // Docs legacy sin status: rellena active sin tocar el rol.
-      if (!data.containsKey('status')) {
-        _audit(
-          'USER_CREATE',
-          'backfill status=active (merge) users/${user.id}',
-        );
-        try {
-          await doc.set(
-            <String, dynamic>{
-              'status': UserStatus.active.firestoreValue,
-              'updatedAt': FieldValue.serverTimestamp(),
-            },
-            SetOptions(merge: true),
-          );
-          data['status'] = UserStatus.active.firestoreValue;
-          _audit('USER_CREATE', 'backfill status OK');
-        } catch (e) {
-          _audit('USER_CREATE', 'backfill status FAIL: $e');
-          if (e is FirebaseException) {
-            _auditFirebaseException('USER_BACKFILL_STATUS', e);
-          }
-        }
-      }
-
-      final AppUser loaded = _fromFirestore(user.id, data, fallback: user);
-      _audit(
-        'AUTH_FLOW',
-        'role leido=${loaded.role.firestoreValue} '
-        'status leido=${loaded.status.firestoreValue} '
-        'isAdmin=${loaded.isAdmin} isSuspended=${loaded.isSuspended}',
-      );
-      return loaded;
     } on FirebaseException catch (e) {
-      _auditFirebaseException('ensureUserDocument', e);
-      rethrow;
-    } catch (e, st) {
-      _audit('AUTH_FLOW', 'ensureUserDocument ERROR no-Firebase: $e\n$st');
+      // ignore: avoid_print
+      print(
+        '[USER_GET_FAIL] uid=${user.id} path=$path '
+        'code=${e.code} message=${e.message} plugin=${e.plugin}',
+      );
       rethrow;
     }
+
+    if (!snap.exists) {
+      final Map<String, dynamic> payload = _newUserPayload(user);
+      // ignore: avoid_print
+      print(
+        '[USER_CREATE] uid=${user.id} path=$path payload=$payload',
+      );
+
+      try {
+        await doc.set(payload);
+        // ignore: avoid_print
+        print('[USER_CREATE_OK] uid=${user.id} path=$path');
+      } on FirebaseException catch (e) {
+        // ignore: avoid_print
+        print(
+          '[USER_CREATE_FAIL] uid=${user.id} path=$path '
+          'code=${e.code} message=${e.message} plugin=${e.plugin} '
+          'payload=$payload',
+        );
+        rethrow;
+      }
+
+      return user.copyWith(
+        role: UserRole.client,
+        status: UserStatus.active,
+      );
+    }
+
+    final Map<String, dynamic> data =
+        Map<String, dynamic>.from(snap.data() ?? <String, dynamic>{});
+
+    // Docs legacy sin status: rellena active sin tocar el rol.
+    if (!data.containsKey('status')) {
+      try {
+        await doc.set(
+          <String, dynamic>{
+            'status': UserStatus.active.firestoreValue,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+        data['status'] = UserStatus.active.firestoreValue;
+      } on FirebaseException catch (e) {
+        // ignore: avoid_print
+        print(
+          '[USER_CREATE_FAIL] backfill status uid=${user.id} path=$path '
+          'code=${e.code} message=${e.message}',
+        );
+      }
+    }
+
+    return _fromFirestore(user.id, data, fallback: user);
   }
 
   Map<String, dynamic> _newUserPayload(AppUser user) {
