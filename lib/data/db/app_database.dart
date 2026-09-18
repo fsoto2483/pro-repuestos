@@ -438,12 +438,7 @@ class AppDatabase extends _$AppDatabase {
     required List<ProductImagesCompanion> imageRows,
     required List<FitmentsCompanion> fitmentRows,
   }) async {
-    _quoteLog(
-      '[IMPORT_DEBUG] AppDatabase.replaceCatalog() INICIO '
-      'productsToInsert=${productRows.length}',
-    );
     await transaction(() async {
-      _quoteLog('[IMPORT_DEBUG] transaction ABIERTA → delete tablas catalogo');
       await delete(fitments).go();
       await delete(productImages).go();
       await delete(products).go();
@@ -452,10 +447,6 @@ class AppDatabase extends _$AppDatabase {
       await delete(vehicleMakes).go();
       await delete(partBrands).go();
       await delete(categories).go();
-      _quoteLog(
-        '[IMPORT_DEBUG] deletes OK → insertAll batch '
-        'products=${productRows.length}',
-      );
 
       await batch((Batch b) {
         b.insertAll(categories, categoryRows);
@@ -467,15 +458,7 @@ class AppDatabase extends _$AppDatabase {
         b.insertAll(productImages, imageRows);
         b.insertAll(fitments, fitmentRows);
       });
-      _quoteLog(
-        '[IMPORT_DEBUG] batch insertAll OK (commit al salir del '
-        'transaction sin excepcion)',
-      );
     });
-    _quoteLog(
-      '[IMPORT_DEBUG] AppDatabase.replaceCatalog() FIN — transaction '
-      'completada (commit implicito de Drift)',
-    );
   }
 
   Future<void> clearCatalog() => replaceCatalog(

@@ -66,19 +66,11 @@ class CatalogSourceReader {
     Map<CatalogTable, ParsedSheet> sheets,
     List<String> ignored,
   ) {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] CatalogSourceReader._readWorkbook ${file.name} '
-        'bytes=${file.bytes.length}');
     final xlsx.Excel book = xlsx.Excel.decodeBytes(file.bytes);
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] workbook hojas=${book.tables.keys.toList()}');
 
     for (final MapEntry<String, xlsx.Sheet> entry in book.tables.entries) {
       final CatalogTable? table = CatalogTable.matchName(entry.key);
       if (table == null) {
-        // ignore: avoid_print
-        print('[IMPORT_DEBUG] hoja IGNORADA name="${entry.key}" '
-            '(no match CatalogTable)');
         ignored.add('${file.name} · ${entry.key}');
         continue;
       }
@@ -89,9 +81,6 @@ class CatalogSourceReader {
                 row.map((xlsx.Data? cell) => _cellText(cell?.value)).toList(),
           )
           .toList();
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG] hoja MATCH ${table.name} excelSheet="${entry.key}" '
-          'rows=${rows.length}');
       sheets[table] = ParsedSheet(
         sourceName: '${file.name} · ${entry.key}',
         rows: rows,

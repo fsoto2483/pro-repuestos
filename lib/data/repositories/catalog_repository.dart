@@ -2,7 +2,6 @@ import '../db/app_database.dart';
 import '../import/catalog_importer.dart';
 import '../import/catalog_seeder.dart';
 import '../import/catalog_sources.dart';
-import '../import/catalog_tables.dart';
 import '../import/import_report.dart';
 import '../models/catalog_filter.dart';
 import '../models/part_category.dart';
@@ -63,29 +62,11 @@ class CatalogRepository {
 
   /// Reemplaza el catalogo con los archivos que elija el usuario.
   Future<ImportReport> importFiles(List<SourceFile> files) async {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] CatalogRepository.importFiles '
-        'files=${files.map((SourceFile f) => f.name).toList()}');
     if (files.isEmpty) {
       return ImportReport.failure('No seleccionaste ningun archivo.');
     }
 
-    final CatalogStats before = await db.stats();
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] CatalogRepository stats.products ANTES='
-        '${before.products}');
-
     final SheetCollection collection = const CatalogSourceReader().read(files);
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] SheetCollection sheets='
-        '${collection.sheets.keys.map((e) => e.name).toList()} '
-        'ignored=${collection.ignored} isEmpty=${collection.isEmpty}');
-    for (final MapEntry<CatalogTable, ParsedSheet> e
-        in collection.sheets.entries) {
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG]   sheet ${e.key.name} source=${e.value.sourceName} '
-          'rows=${e.value.rows.length}');
-    }
 
     if (collection.isEmpty) {
       return ImportReport.failure(
@@ -94,13 +75,7 @@ class CatalogRepository {
       );
     }
 
-    final ImportReport report =
-        await CatalogImporter(db).import(collection.sheets);
-    final CatalogStats after = await db.stats();
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] CatalogRepository import applied=${report.applied} '
-        'fatal=${report.fatalError} stats.products DESPUES=${after.products}');
-    return report;
+    return CatalogImporter(db).import(collection.sheets);
   }
 
   /// Vuelve a dejar el catalogo que trae la app de fabrica.

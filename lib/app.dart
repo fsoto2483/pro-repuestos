@@ -40,12 +40,6 @@ class RepuestosProApp extends StatelessWidget {
     final CatalogReadSource remoteSource =
         catalogReadSource ?? FirestoreCatalogRepository();
 
-    // ignore: avoid_print
-    print(
-      '[FIRESTORE_DEBUG] CatalogReadSource.runtimeType='
-      '${remoteSource.runtimeType}',
-    );
-
     return MultiProvider(
       providers: <SingleChildWidget>[
         ChangeNotifierProvider<AuthController>(

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../../services/firestore_service.dart';
 import '../db/app_database.dart';
 import '../mappers/catalog_product_mapper.dart';
@@ -19,13 +17,7 @@ class FirestoreCatalogRepository implements CatalogReadSource {
   FirestoreCatalogRepository({
     this.firestore = const FirestoreService(),
     this.mapper = const CatalogProductMapper(),
-  }) {
-    // ignore: avoid_print
-    print(
-      '[FIRESTORE_DEBUG] FirestoreCatalogRepository init '
-      'projectId=${FirebaseFirestore.instance.app.options.projectId}',
-    );
-  }
+  });
 
   final FirestoreService firestore;
   final CatalogProductMapper mapper;
@@ -43,19 +35,9 @@ class FirestoreCatalogRepository implements CatalogReadSource {
   /// Precarga look-ups usados por el mapper y la UI.
   @override
   Future<void> warmUp() async {
-    // ignore: avoid_print
-    print('[FIRESTORE_MODE] FirestoreCatalogRepository.warmUp()');
-
     final List<Category> remoteCats = await firestore.fetchCategories();
     final List<Brand> remoteBrands = await firestore.fetchBrands();
     final List<CatalogProduct> allProducts = await firestore.fetchProducts();
-
-    // ignore: avoid_print
-    print('[FIRESTORE_CATEGORIES] ${remoteCats.length}');
-    // ignore: avoid_print
-    print('[FIRESTORE_BRANDS] ${remoteBrands.length}');
-    // ignore: avoid_print
-    print('[FIRESTORE_PRODUCTS] ${allProducts.length}');
 
     final Map<String, int> productsPerCategory = <String, int>{};
     final Map<String, int> productsPerBrand = <String, int>{};
@@ -207,9 +189,6 @@ class FirestoreCatalogRepository implements CatalogReadSource {
   @override
   Future<List<Product>> search(CatalogFilter filter, {int limit = 240}) async {
     if (_categoriesById.isEmpty) await warmUp();
-
-    // ignore: avoid_print
-    print('[FIRESTORE_MODE] search via FirestoreCatalogRepository');
 
     final List<CatalogProduct> remote = await firestore.fetchProducts(
       brandId: filter.partBrandId,

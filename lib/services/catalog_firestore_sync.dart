@@ -310,13 +310,11 @@ class CatalogFirestoreSync {
       });
     }
 
-    int productosEnviados = 0;
     int productosExitosos = 0;
     int failedProducts = 0;
     final List<String> productFailures = <String>[];
 
     for (final ProductRow row in productRows) {
-      productosEnviados++;
       try {
         final CatalogProduct? existing =
             await firestore.fetchProductById(row.id);
@@ -369,14 +367,6 @@ class CatalogFirestoreSync {
         );
       }
     }
-
-    // ignore: avoid_print
-    print(
-      '[SYNC] productos drift=${productRows.length} '
-      'enviados=$productosEnviados '
-      'exitosos=$productosExitosos '
-      'fallidos=$failedProducts',
-    );
 
     if (productosExitosos + failedProducts != productRows.length) {
       throw Exception(

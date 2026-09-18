@@ -128,11 +128,6 @@ class CatalogController extends ChangeNotifier {
   // ----------------------------------------------------------------- carga
 
   Future<void> load() async {
-    // ignore: avoid_print
-    print(
-      '[FIRESTORE_MODE] ENABLED source=${_catalog.runtimeType} '
-      'importStore=${_importStore.runtimeType}',
-    );
     _status = CatalogStatus.loading;
     _errorMessage = null;
     notifyListeners();
@@ -145,13 +140,6 @@ class CatalogController extends ChangeNotifier {
       _partBrands = await _catalog.brands();
       _featured = await _catalog.featured();
       _stats = await _catalog.stats();
-
-      // ignore: avoid_print
-      print(
-        '[FIRESTORE_MODE] load ok categories=${_categories.length} '
-        'brands=${_partBrands.length} featured=${_featured.length} '
-        'products=${_stats?.products}',
-      );
 
       await _runSearch();
       _status = CatalogStatus.ready;
