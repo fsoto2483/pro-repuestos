@@ -36,6 +36,8 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
   List<String> _pickedNames = <String>[];
 
 Future<void> _pickAndImport() async {
+  // ignore: avoid_print
+  print('[IMPORT_DEBUG] BulkImportScreen._pickAndImport INICIO');
   final FilePickerResult? result = await FilePicker.platform.pickFiles(
     dialogTitle: 'Archivos del catalogo',
     type: FileType.custom,
@@ -43,11 +45,18 @@ Future<void> _pickAndImport() async {
     withData: true,
   );
 
-  if (result == null) return;
+  if (result == null) {
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] usuario cancelo picker');
+    return;
+  }
 
   final List<SourceFile> files = <SourceFile>[];
 
   for (final PlatformFile file in result.files) {
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] PlatformFile name=${file.name} '
+        'bytesNull=${file.bytes == null} size=${file.size}');
     if (file.bytes == null) continue;
 
     files.add(
@@ -66,8 +75,14 @@ Future<void> _pickAndImport() async {
     _pickedNames = files.map((f) => f.name).toList();
   });
 
+  // ignore: avoid_print
+  print('[IMPORT_DEBUG] enviando a CatalogController.importFiles '
+      'count=${files.length}');
   final ImportReport report =
       await context.read<CatalogController>().importFiles(files);
+  // ignore: avoid_print
+  print('[IMPORT_DEBUG] BulkImportScreen report.applied=${report.applied} '
+      'fatal=${report.fatalError} summary=${report.summary}');
 
   if (!mounted) return;
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart';
 
@@ -10,6 +11,12 @@ import 'connection.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
+
+void _quoteLog(String message) {
+  // ignore: avoid_print
+  print(message);
+  developer.log(message, name: 'QUOTE_DEBUG');
+}
 
 /// Resumen de cuantos registros hay en cada tabla.
 class CatalogStats {
@@ -56,21 +63,51 @@ class CatalogStats {
     Products,
     ProductImages,
     Fitments,
+    Quotes,
+    QuoteItems,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(openCatalogConnection());
+  static AppDatabase? _shared;
+
+  /// Instancia compartida del catalogo local (Drift).
+  static AppDatabase get instance => AppDatabase();
+
+  factory AppDatabase() {
+    return _shared ??= AppDatabase._();
+  }
+
+  AppDatabase._() : super(openCatalogConnection());
 
   /// Constructor usado en las pruebas, donde la base vive solo en memoria.
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (Migrator m) => m.createAll(),
+    onCreate: (Migrator m) async {
+      _quoteLog('[QUOTE_DEBUG] migration.onCreate schemaVersion=$schemaVersion');
+      await m.createAll();
+      _quoteLog('[QUOTE_DEBUG] migration.onCreate createAll OK');
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      _quoteLog('[QUOTE_DEBUG] migration.onUpgrade from=$from to=$to');
+      if (from < 2) {
+        _quoteLog('[QUOTE_DEBUG] creando tablas quotes / quote_items');
+        await m.createTable(quotes);
+        await m.createTable(quoteItems);
+        _quoteLog('[QUOTE_DEBUG] tablas quotes creadas OK');
+      }
+    },
     beforeOpen: (OpeningDetails details) async {
+      _quoteLog(
+        '[QUOTE_DEBUG] beforeOpen wasCreated=${details.wasCreated} '
+        'hadUpgrade=${details.hadUpgrade} '
+        'versionNow=${details.versionNow} '
+        'versionBefore=${details.versionBefore}',
+      );
       // Sin esto SQLite acepta filas huerfanas y la compatibilidad podria
       // apuntar a modelos que ya no existen.
       await customStatement('PRAGMA foreign_keys = ON');
@@ -401,7 +438,12 @@ class AppDatabase extends _$AppDatabase {
     required List<ProductImagesCompanion> imageRows,
     required List<FitmentsCompanion> fitmentRows,
   }) async {
+    _quoteLog(
+      '[IMPORT_DEBUG] AppDatabase.replaceCatalog() INICIO '
+      'productsToInsert=${productRows.length}',
+    );
     await transaction(() async {
+      _quoteLog('[IMPORT_DEBUG] transaction ABIERTA → delete tablas catalogo');
       await delete(fitments).go();
       await delete(productImages).go();
       await delete(products).go();
@@ -410,6 +452,10 @@ class AppDatabase extends _$AppDatabase {
       await delete(vehicleMakes).go();
       await delete(partBrands).go();
       await delete(categories).go();
+      _quoteLog(
+        '[IMPORT_DEBUG] deletes OK → insertAll batch '
+        'products=${productRows.length}',
+      );
 
       await batch((Batch b) {
         b.insertAll(categories, categoryRows);
@@ -421,7 +467,15 @@ class AppDatabase extends _$AppDatabase {
         b.insertAll(productImages, imageRows);
         b.insertAll(fitments, fitmentRows);
       });
+      _quoteLog(
+        '[IMPORT_DEBUG] batch insertAll OK (commit al salir del '
+        'transaction sin excepcion)',
+      );
     });
+    _quoteLog(
+      '[IMPORT_DEBUG] AppDatabase.replaceCatalog() FIN — transaction '
+      'completada (commit implicito de Drift)',
+    );
   }
 
   Future<void> clearCatalog() => replaceCatalog(
@@ -434,6 +488,87 @@ class AppDatabase extends _$AppDatabase {
     imageRows: const <ProductImagesCompanion>[],
     fitmentRows: const <FitmentsCompanion>[],
   );
+
+  // ----------------------------------------------------------- cotizaciones
+
+  /// Diagnostico temporal: schema y existencia de tablas.
+  Future<void> debugQuoteSchema() async {
+    final QueryRow version = await customSelect(
+      'PRAGMA user_version',
+    ).getSingle();
+    _quoteLog(
+      '[QUOTE_DEBUG] AppDatabase PRAGMA user_version='
+      '${version.data.values.first} schemaVersion=$schemaVersion',
+    );
+
+    final List<QueryRow> tables = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+    ).get();
+    final List<String> names = tables
+        .map((QueryRow r) => r.read<String>('name'))
+        .toList();
+    _quoteLog('[QUOTE_DEBUG] tablas SQLite: $names');
+    _quoteLog(
+      '[QUOTE_DEBUG] existe quotes=${names.contains('quotes')} '
+      'quote_items=${names.contains('quote_items')}',
+    );
+  }
+
+  Future<void> insertQuote({
+    required QuotesCompanion quote,
+    required List<QuoteItemsCompanion> items,
+  }) async {
+    _quoteLog('[QUOTE_DEBUG] AppDatabase.insertQuote INICIO '
+        'items=${items.length}');
+    await transaction(() async {
+      try {
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quotes...');
+        await into(quotes).insert(quote);
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quotes OK');
+      } catch (e, st) {
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quotes FALLO: $e');
+        _quoteLog('[QUOTE_DEBUG] STACK:\n$st');
+        rethrow;
+      }
+      try {
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quote_items '
+            'count=${items.length}...');
+        await batch((Batch b) {
+          b.insertAll(quoteItems, items);
+        });
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quote_items OK');
+      } catch (e, st) {
+        _quoteLog('[QUOTE_DEBUG] AppDatabase INSERT quote_items FALLO: $e');
+        _quoteLog('[QUOTE_DEBUG] STACK:\n$st');
+        rethrow;
+      }
+    });
+    _quoteLog('[QUOTE_DEBUG] AppDatabase.insertQuote FIN OK');
+  }
+
+  Future<List<QuoteRow>> listQuotes({String? userId}) async {
+    final query = select(quotes)
+      ..orderBy(<OrderClauseGenerator<Quotes>>[
+        (Quotes t) => OrderingTerm.desc(t.createdAt),
+      ]);
+    if (userId != null && userId.isNotEmpty) {
+      query.where((Quotes t) => t.userId.equals(userId));
+    }
+    return query.get();
+  }
+
+  Future<QuoteRow?> quoteById(String id) {
+    return (select(quotes)..where((Quotes t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<List<QuoteItemRow>> quoteItemsFor(String quoteId) {
+    return (select(quoteItems)
+          ..where((QuoteItems t) => t.quoteId.equals(quoteId))
+          ..orderBy(<OrderClauseGenerator<QuoteItems>>[
+            (QuoteItems t) => OrderingTerm.asc(t.sortOrder),
+          ]))
+        .get();
+  }
 
   // ------------------------------------------------------------- internos
 

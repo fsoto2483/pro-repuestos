@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../../services/firestore_service.dart';
 import '../db/app_database.dart';
 import 'catalog_importer.dart';
 import 'catalog_sources.dart';
@@ -25,8 +26,41 @@ class CatalogSeeder {
 
   /// Devuelve el informe si hubo que sembrar, o `null` si ya habia datos.
   Future<ImportReport?> seedIfEmpty() async {
+    // Web y modo Firestore: no sembrar desde assets (evita IndexedDB por
+    // navegador como fuente de verdad).
+    if (kIsWeb) {
+      // ignore: avoid_print
+      print('[FIRESTORE_MODE] seedIfEmpty omitido en Web');
+      return null;
+    }
+
     final CatalogStats stats = await _db.stats();
-    if (!stats.isEmpty) return null;
+    // ignore: avoid_print
+    print('[BOOT_1] CatalogSeeder.seedIfEmpty '
+        'drift.products=${stats.products} isEmpty=${stats.isEmpty}');
+    if (!stats.isEmpty) {
+      // ignore: avoid_print
+      print('[BOOT_1] skip seed — Drift ya tiene productos; '
+          'NO se cargan assets/data/*.csv');
+      return null;
+    }
+
+    // Si Firestore ya tiene catalogo, no rellenar Drift desde CSV.
+    try {
+      final int remoteCount = await const FirestoreService().countProducts();
+      if (remoteCount > 0) {
+        // ignore: avoid_print
+        print('[FIRESTORE_MODE] seedIfEmpty omitido — '
+            'Firestore ya tiene $remoteCount productos');
+        return null;
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[FIRESTORE_MODE] no se pudo consultar Firestore para seed: $e');
+    }
+
+    // ignore: avoid_print
+    print('[BOOT_1] Drift vacio y Firestore vacio → sembrando $assetFolder/*.csv');
     return seed();
   }
 

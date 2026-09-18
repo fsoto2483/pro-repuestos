@@ -157,3 +157,49 @@ class Fitments extends Table {
   @override
   Set<Column<Object>> get primaryKey => <Column<Object>>{id};
 }
+
+/// Cotizacion confirmada (snapshot del carrito + datos del cliente).
+@DataClassName('QuoteRow')
+class Quotes extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text().withDefault(const Constant(''))();
+  TextColumn get status => text().withDefault(const Constant('confirmed'))();
+
+  TextColumn get customerName => text()();
+  TextColumn get customerPhone => text().withDefault(const Constant(''))();
+  TextColumn get customerEmail => text()();
+  TextColumn get companyName => text().withDefault(const Constant(''))();
+  TextColumn get notes => text().withDefault(const Constant(''))();
+
+  RealColumn get subtotal => real()();
+  RealColumn get taxRate => real().withDefault(const Constant(0.19))();
+  RealColumn get taxAmount => real()();
+  RealColumn get total => real()();
+  IntColumn get itemCount => integer().withDefault(const Constant(0))();
+  IntColumn get unitCount => integer().withDefault(const Constant(0))();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}
+
+/// Lineas de una cotizacion. Guarda snapshot para no depender del catalogo.
+@DataClassName('QuoteItemRow')
+class QuoteItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get quoteId =>
+      text().references(Quotes, #id, onDelete: KeyAction.cascade)();
+  TextColumn get productId => text()();
+  TextColumn get sku => text()();
+  TextColumn get oem => text().withDefault(const Constant(''))();
+  TextColumn get productName => text()();
+  TextColumn get brandName => text().withDefault(const Constant(''))();
+  RealColumn get unitPrice => real()();
+  IntColumn get quantity => integer()();
+  RealColumn get lineTotal => real()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => <Column<Object>>{id};
+}

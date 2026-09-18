@@ -5,35 +5,55 @@ import 'package:provider/single_child_widget.dart';
 
 import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/catalog_read_source.dart';
 import 'data/repositories/catalog_repository.dart';
+import 'data/repositories/quotes_repository.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/home_shell.dart';
 import 'state/auth_controller.dart';
 import 'state/cart_controller.dart';
 import 'state/catalog_controller.dart';
+import 'state/quotes_controller.dart';
 
 /// Raiz de la aplicacion: registra el estado compartido y decide que pantalla
 /// mostrar segun la sesion.
 class RepuestosProApp extends StatelessWidget {
-  const RepuestosProApp({super.key, this.catalogRepository});
+  const RepuestosProApp({
+    super.key,
+    this.catalogRepository,
+    this.catalogReadSource,
+  });
 
-  /// Las pruebas inyectan un catalogo en memoria; en produccion se abre la
-  /// base local del dispositivo.
+  /// Drift local: quotes + import. En pruebas se inyecta en memoria.
   final CatalogRepository? catalogRepository;
+
+  /// Fuente de lectura del catalogo. Por defecto: Firestore.
+  final CatalogReadSource? catalogReadSource;
 
   @override
   Widget build(BuildContext context) {
+    final CatalogRepository localRepo =
+        catalogRepository ?? CatalogRepository();
+    final CatalogReadSource remoteSource =
+        catalogReadSource ?? FirestoreCatalogRepository();
+
     return MultiProvider(
       providers: <SingleChildWidget>[
         ChangeNotifierProvider<AuthController>(
           create: (_) => AuthController(const AuthRepository()),
         ),
         ChangeNotifierProvider<CatalogController>(
-          create: (_) =>
-              CatalogController(catalogRepository ?? CatalogRepository())
-                ..load(),
+          create: (_) => CatalogController(
+            remoteSource,
+            importStore: localRepo,
+          )..load(),
         ),
         ChangeNotifierProvider<CartController>(create: (_) => CartController()),
+        ChangeNotifierProvider<QuotesController>(
+          create: (_) => QuotesController(
+            QuotesRepository(database: localRepo.db),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'REPUESTOS PRO',

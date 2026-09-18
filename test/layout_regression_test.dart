@@ -29,7 +29,7 @@ void main() {
   Widget wrap(Widget child) => MultiProvider(
     providers: <SingleChildWidget>[
       ChangeNotifierProvider<CatalogController>(
-        create: (_) => CatalogController(repository),
+        create: (_) => CatalogController.local(repository),
       ),
       ChangeNotifierProvider<CartController>(
         create: (_) => CartController()..add(product),

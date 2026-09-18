@@ -33,6 +33,15 @@ class CatalogImporter {
   final AppDatabase _db;
 
   Future<ImportReport> import(Map<CatalogTable, ParsedSheet> sources) async {
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] CatalogImporter.import() INICIO '
+        'sources=${sources.keys.map((e) => e.name).toList()}');
+
+    final CatalogStats statsBefore = await _db.stats();
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] stats().products ANTES=${statsBefore.products} '
+        'total=${statsBefore.total}');
+
     final List<ImportIssue> issues = <ImportIssue>[];
     final List<TableResult> results = <TableResult>[];
 
@@ -45,6 +54,9 @@ class CatalogImporter {
 
       if (sheet == null) {
         final List<_Record> existing = await _readExisting(table);
+        // ignore: avoid_print
+        print('[IMPORT_DEBUG] hoja ausente ${table.name} → '
+            'reusa existentes=${existing.length}');
         parsed[table] = existing;
         results.add(
           TableResult(
@@ -57,9 +69,20 @@ class CatalogImporter {
         continue;
       }
 
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] hoja presente ${table.name} '
+          'source=${sheet.sourceName} rows=${sheet.rows.length} '
+          'dataRows=${sheet.rows.length < 1 ? 0 : sheet.rows.length - 1}');
+
       final _ParseOutcome outcome = _parseSheet(table, sheet);
       issues.addAll(outcome.issues);
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] parse ${table.name}: read=${outcome.readCount} '
+          'accepted=${outcome.records.length} issues=${outcome.issues.length} '
+          'fatal=${outcome.fatal}');
       if (outcome.fatal != null) {
+        // ignore: avoid_print
+        print('[IMPORT_DEBUG] ABORT fatal en ${table.name} → applied=false');
         return ImportReport(
           results: results,
           issues: issues,
@@ -77,6 +100,11 @@ class CatalogImporter {
       );
     }
 
+    final int productsFound = parsed[CatalogTable.products]?.length ?? 0;
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] productos en parsed (hoja o existentes)='
+        '$productsFound');
+
     // 2. Descartar lo que apunte a registros que no existen.
     final List<TableResult> adjusted = _enforceReferences(
       parsed,
@@ -84,8 +112,16 @@ class CatalogImporter {
       results,
     );
 
+    final int productsAfterRefs = parsed[CatalogTable.products]?.length ?? 0;
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] productos tras enforceReferences=$productsAfterRefs '
+        'issuesTotales=${issues.length}');
+
     // 3. Escribir todo de una sola vez.
     try {
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] llamando replaceCatalog() '
+          'productRows=${parsed[CatalogTable.products]!.length}');
       await _db.replaceCatalog(
         categoryRows: parsed[CatalogTable.categories]!
             .map((_Record r) => r.companion as CategoriesCompanion)
@@ -112,7 +148,13 @@ class CatalogImporter {
             .map((_Record r) => r.companion as FitmentsCompanion)
             .toList(),
       );
-    } catch (e) {
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] replaceCatalog() TERMINO sin excepcion');
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] replaceCatalog() FALLO: $e');
+      // ignore: avoid_print
+      print('[IMPORT_DEBUG] STACK:\n$st');
       return ImportReport(
         results: adjusted,
         issues: issues,
@@ -120,6 +162,13 @@ class CatalogImporter {
         fatalError: 'La base de datos rechazo la carga: $e',
       );
     }
+
+    final CatalogStats statsAfter = await _db.stats();
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] stats().products DESPUES=${statsAfter.products} '
+        'total=${statsAfter.total}');
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] CatalogImporter.import() FIN applied=true');
 
     return ImportReport(results: adjusted, issues: issues, applied: true);
   }

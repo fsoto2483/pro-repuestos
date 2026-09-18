@@ -3,16 +3,20 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../data/models/app_user.dart';
 import '../../data/models/product.dart';
 import '../../state/auth_controller.dart';
 import '../../state/cart_controller.dart';
 import '../../state/catalog_controller.dart';
+import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_cover.dart';
+import '../debug/firestore_test_screen.dart';
 import '../import/bulk_import_screen.dart';
 import '../product/product_detail_screen.dart';
+import '../quotes/quotes_screen.dart';
 
 /// Perfil del usuario: datos de la cuenta, favoritos y opciones.
 class ProfileScreen extends StatelessWidget {
@@ -23,6 +27,7 @@ class ProfileScreen extends StatelessWidget {
     final AuthController auth = context.watch<AuthController>();
     final CatalogController catalog = context.watch<CatalogController>();
     final CartController cart = context.watch<CartController>();
+    final QuotesController quotes = context.watch<QuotesController>();
     final AppUser? user = auth.user;
     final double gutter = context.horizontalPadding;
 
@@ -110,10 +115,13 @@ class ProfileScreen extends StatelessWidget {
                     title: 'Datos del taller',
                     subtitle: 'Razon social, NIT y direccion de despacho',
                   ),
-                  const _Option(
-                    icon: Icons.local_shipping_rounded,
-                    title: 'Mis pedidos',
-                    subtitle: 'Historial y seguimiento de despachos',
+                  _Option(
+                    icon: Icons.receipt_long_rounded,
+                    title: 'Mis cotizaciones',
+                    subtitle: quotes.count == 0
+                        ? 'Historial de cotizaciones guardadas'
+                        : '${Formatters.plural(quotes.count, 'cotizacion', 'cotizaciones')} guardadas',
+                    onTap: () => QuotesScreen.open(context),
                   ),
                   const _Option(
                     icon: Icons.percent_rounded,
@@ -129,6 +137,18 @@ class ProfileScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 22),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FirestoreTestScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.cloud, size: 20),
+                label: const Text('Firestore Test'),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () => _confirmSignOut(context, auth),
                 icon: const Icon(Icons.logout_rounded, size: 20),

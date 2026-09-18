@@ -44,5 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Firebase
+.firebase/
+*.firestore.log
+
 # Widget Preview related
 .widget_preview/

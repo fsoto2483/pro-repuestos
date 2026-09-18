@@ -40,7 +40,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final CatalogController catalog = CatalogController(repository);
+    final CatalogController catalog = CatalogController.local(repository);
     addTearDown(catalog.dispose);
 
     await tester.pumpWidget(
@@ -63,7 +63,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final CatalogController catalog = CatalogController(repository);
+    final CatalogController catalog = CatalogController.local(repository);
     addTearDown(catalog.dispose);
 
     // Se abre la ficha con la carga inicial a medio camino.
@@ -90,7 +90,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    final CatalogController catalog = CatalogController(repository);
+    final CatalogController catalog = CatalogController.local(repository);
     addTearDown(catalog.dispose);
 
     await tester.pumpWidget(

@@ -12,7 +12,7 @@ void main() {
 
   setUp(() async {
     repository = await testCatalogRepository();
-    catalog = CatalogController(repository);
+    catalog = CatalogController.local(repository);
     await catalog.load();
   });
 

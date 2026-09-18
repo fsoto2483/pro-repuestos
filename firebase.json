@@ -1,0 +1,37 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "repuestospro-prod",
+          "appId": "1:943040419024:android:780a9366f1f292209f7ad5",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "repuestospro-prod",
+          "configurations": {
+            "android": "1:943040419024:android:780a9366f1f292209f7ad5",
+            "web": "1:943040419024:web:de24c97126c2ebf79f7ad5",
+            "windows": "1:943040419024:web:61fdc27ef96a550d9f7ad5"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

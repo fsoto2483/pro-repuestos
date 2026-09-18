@@ -9,7 +9,10 @@ import '../data/models/catalog_filter.dart';
 import '../data/models/part_category.dart';
 import '../data/models/product.dart';
 import '../data/models/vehicle.dart';
+import '../data/repositories/catalog_read_source.dart';
 import '../data/repositories/catalog_repository.dart';
+import '../data/repositories/local_catalog_read_source.dart';
+import '../services/catalog_firestore_sync.dart';
 
 export '../data/models/catalog_filter.dart' show ProductSort, ProductSortLabel;
 
@@ -17,13 +20,26 @@ enum CatalogStatus { idle, loading, ready, error }
 
 /// Estado del catalogo: filtros en cascada, resultados y favoritos.
 ///
-/// Las consultas van a la base de datos, que es asincrona, pero la interfaz
-/// necesita leer listas ya listas. Por eso el controlador guarda el ultimo
-/// resultado y avisa con `notifyListeners` cuando cambia.
+/// Lecturas desde [CatalogReadSource] (Firestore en produccion). Drift solo
+/// se usa para carga masiva / restore y como cache futura.
 class CatalogController extends ChangeNotifier {
-  CatalogController(this._repository);
+  CatalogController(
+    this._catalog, {
+    CatalogRepository? importStore,
+  }) : _importStore = importStore ?? CatalogRepository();
 
-  final CatalogRepository _repository;
+  /// Atajo para pruebas con Drift en memoria.
+  factory CatalogController.local(CatalogRepository repository) {
+    return CatalogController(
+      LocalCatalogReadSource(repository),
+      importStore: repository,
+    );
+  }
+
+  final CatalogReadSource _catalog;
+
+  /// Solo escritura local (Excel/CSV) + sync posterior a Firestore.
+  final CatalogRepository _importStore;
 
   static const Duration _searchDebounce = Duration(milliseconds: 280);
 
@@ -112,25 +128,27 @@ class CatalogController extends ChangeNotifier {
   // ----------------------------------------------------------------- carga
 
   Future<void> load() async {
+    // ignore: avoid_print
+    print('[FIRESTORE_MODE] ENABLED');
     _status = CatalogStatus.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _repository.ensureSeeded();
+      await _catalog.warmUp();
 
-      _categories = await _repository.fetchCategories();
-      _makes = await _repository.fetchMakes();
-      _partBrands = await _repository.fetchPartBrands();
-      _featured = await _repository.fetchFeatured();
-      _stats = await _repository.stats();
+      _categories = await _catalog.categories();
+      _makes = await _catalog.makes();
+      _partBrands = await _catalog.brands();
+      _featured = await _catalog.featured();
+      _stats = await _catalog.stats();
 
       await _runSearch();
       _status = CatalogStatus.ready;
     } catch (e) {
       _errorMessage =
-          'No pudimos abrir el catalogo local. Cierra la aplicacion y '
-          'vuelve a intentarlo.';
+          'No pudimos abrir el catalogo en Firestore. Revisa la conexion '
+          'e intenta de nuevo.';
       _status = CatalogStatus.error;
       debugPrint('CatalogController.load: $e');
     }
@@ -174,65 +192,48 @@ class CatalogController extends ChangeNotifier {
   }
 
   void resetFilters() {
-    _debounce?.cancel();
-    _filter = const CatalogFilter();
-    _models = <VehicleModel>[];
-    _engines = <Engine>[];
-    _years = <int>[];
-    unawaited(_runSearch(notify: true));
-    notifyListeners();
+    _apply(const CatalogFilter());
   }
 
-  // ------------------------------------------------- cascada del vehiculo
-
-  /// Marca del vehiculo. Al cambiarla se caen modelo, motor y ano, porque un
-  /// Spark no existe dentro de Renault.
   Future<void> selectMake(String? id) async {
-    if (id == null || _filter.makeId == id) {
-      clearVehicle();
-      return;
-    }
-
+    final bool clear = id == null || _filter.makeId == id;
     _filter = _filter.copyWith(
       makeId: id,
+      clearMake: clear,
       clearModel: true,
       clearEngine: true,
       clearYear: true,
     );
+    _models = <VehicleModel>[];
     _engines = <Engine>[];
     _years = <int>[];
     notifyListeners();
 
-    _models = await _repository.fetchModels(id);
-    notifyListeners();
-    await _runSearch(notify: true);
+    if (id != null) {
+      _models = await _catalog.models(id);
+      notifyListeners();
+    }
+    unawaited(_runSearch(notify: true));
   }
 
   Future<void> selectModel(String? id) async {
-    if (id == null || _filter.modelId == id) {
-      _filter = _filter.copyWith(
-        clearModel: true,
-        clearEngine: true,
-        clearYear: true,
-      );
-      _engines = <Engine>[];
-      _years = <int>[];
-      notifyListeners();
-      await _runSearch(notify: true);
-      return;
-    }
-
+    final bool clear = id == null || _filter.modelId == id;
     _filter = _filter.copyWith(
       modelId: id,
+      clearModel: clear,
       clearEngine: true,
       clearYear: true,
     );
+    _engines = <Engine>[];
+    _years = <int>[];
     notifyListeners();
 
-    _engines = await _repository.fetchEngines(id);
-    _years = await _repository.fetchYears(modelId: id);
-    notifyListeners();
-    await _runSearch(notify: true);
+    if (id != null) {
+      _engines = await _catalog.engines(id);
+      _years = await _catalog.years(modelId: id);
+      notifyListeners();
+    }
+    unawaited(_runSearch(notify: true));
   }
 
   Future<void> selectEngine(String? id) async {
@@ -244,15 +245,12 @@ class CatalogController extends ChangeNotifier {
     );
     notifyListeners();
 
-    if (_filter.modelId != null) {
-      // El motor acota los anos: un 1.6 puede haber salido despues que el 1.2.
-      _years = await _repository.fetchYears(
-        modelId: _filter.modelId!,
-        engineId: _filter.engineId,
-      );
+    final String? modelId = _filter.modelId;
+    if (modelId != null) {
+      _years = await _catalog.years(modelId: modelId, engineId: id);
+      notifyListeners();
     }
-    notifyListeners();
-    await _runSearch(notify: true);
+    unawaited(_runSearch(notify: true));
   }
 
   void selectYear(int? value) {
@@ -280,15 +278,15 @@ class CatalogController extends ChangeNotifier {
     String categoryId, {
     String query = '',
   }) {
-    return _repository.search(
+    return _catalog.search(
       CatalogFilter(categoryId: categoryId, query: query),
     );
   }
 
-  Future<Product?> fullProduct(String id) => _repository.fetchProductById(id);
+  Future<Product?> fullProduct(String id) => _catalog.productById(id);
 
   Future<List<Product>> relatedTo(Product product) =>
-      _repository.relatedTo(product);
+      _catalog.relatedTo(product);
 
   int countForCategory(String id) => _find(_categories, id)?.productCount ?? 0;
 
@@ -316,16 +314,24 @@ class CatalogController extends ChangeNotifier {
 
   // ---------------------------------------------------------- carga masiva
 
-  /// Reemplaza el catalogo con archivos CSV o Excel y recarga la pantalla.
+  /// Importa a Drift y sincroniza a Firestore; luego recarga desde Firestore.
   Future<ImportReport> importFiles(List<SourceFile> files) async {
-    final ImportReport report = await _repository.importFiles(files);
-    if (report.applied) await load();
+    // ignore: avoid_print
+    print('[IMPORT_DEBUG] CatalogController.importFiles INICIO');
+    final ImportReport report = await _importStore.importFiles(files);
+    if (report.applied) {
+      await CatalogFirestoreSync(db: _importStore.db).run();
+      await load();
+    }
     return report;
   }
 
   Future<ImportReport> restoreBundledCatalog() async {
-    final ImportReport report = await _repository.restoreBundled();
-    if (report.applied) await load();
+    final ImportReport report = await _importStore.restoreBundled();
+    if (report.applied) {
+      await CatalogFirestoreSync(db: _importStore.db).run();
+      await load();
+    }
     return report;
   }
 
@@ -344,8 +350,8 @@ class CatalogController extends ChangeNotifier {
     if (notify) notifyListeners();
 
     try {
-      final List<Product> found = await _repository.search(_filter);
-      final int total = await _repository.count(_filter);
+      final List<Product> found = await _catalog.search(_filter);
+      final int total = await _catalog.count(_filter);
       if (token != _searchToken) return;
 
       _results = found;

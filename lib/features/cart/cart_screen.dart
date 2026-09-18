@@ -10,6 +10,7 @@ import '../../state/cart_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_cover.dart';
 import '../product/product_detail_screen.dart';
+import 'checkout_screen.dart';
 
 /// Cotizacion en curso: lista de repuestos, cantidades y totales.
 class CartScreen extends StatelessWidget {
@@ -319,13 +320,7 @@ class _TotalsBar extends StatelessWidget {
                 row('Total', Formatters.price(cart.total), strong: true),
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'El envio de pedidos llega en la siguiente fase',
-                      ),
-                    ),
-                  ),
+                  onPressed: () => CheckoutScreen.open(context),
                   icon: const Icon(Icons.receipt_long_rounded, size: 20),
                   label: const Text('Enviar cotizacion'),
                 ),

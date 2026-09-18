@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/responsive.dart';
+import '../../state/auth_controller.dart';
 import '../../state/cart_controller.dart';
+import '../../state/quotes_controller.dart';
 import '../../widgets/app_logo.dart';
 import '../cart/cart_screen.dart';
 import '../catalog/catalog_screen.dart';
 import '../categories/categories_screen.dart';
+import '../debug/firestore_test_screen.dart';
 import '../profile/profile_screen.dart';
 
 /// Contenedor principal de la app una vez el usuario inicio sesion.
@@ -25,6 +28,15 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final String? userId = context.read<AuthController>().user?.id;
+      context.read<QuotesController>().load(userId: userId);
+    });
+  }
+
   void _goTo(int index) => setState(() => _index = index);
 
   @override
@@ -41,8 +53,24 @@ class _HomeShellState extends State<HomeShell> {
 
     final Widget body = IndexedStack(index: _index, children: pages);
 
+    final PreferredSizeWidget appBar = AppBar(
+      actions: <Widget>[
+        IconButton(
+          icon: const Icon(Icons.cloud),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const FirestoreTestScreen(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
     if (rail) {
       return Scaffold(
+        appBar: appBar,
         body: Row(
           children: <Widget>[
             _SideNav(
@@ -59,6 +87,7 @@ class _HomeShellState extends State<HomeShell> {
     }
 
     return Scaffold(
+      appBar: appBar,
       body: body,
       bottomNavigationBar: _BottomNav(
         index: _index,

@@ -5,6 +5,7 @@ import 'package:repuestos_pro/data/models/catalog_filter.dart';
 import 'package:repuestos_pro/data/models/product.dart';
 import 'package:repuestos_pro/data/repositories/catalog_repository.dart';
 
+import 'package:repuestos_pro/data/repositories/local_catalog_read_source.dart';
 import 'support/test_catalog.dart';
 
 void main() {
@@ -14,7 +15,12 @@ void main() {
   tearDown(() async => repository.dispose());
 
   Future<void> signIn(WidgetTester tester) async {
-    await tester.pumpWidget(RepuestosProApp(catalogRepository: repository));
+    await tester.pumpWidget(
+      RepuestosProApp(
+        catalogRepository: repository,
+        catalogReadSource: LocalCatalogReadSource(repository),
+      ),
+    );
     await tester.pump();
 
     await tester.enterText(
@@ -33,7 +39,12 @@ void main() {
   testWidgets('la app abre en la pantalla de inicio de sesion', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(RepuestosProApp(catalogRepository: repository));
+    await tester.pumpWidget(
+      RepuestosProApp(
+        catalogRepository: repository,
+        catalogReadSource: LocalCatalogReadSource(repository),
+      ),
+    );
     await tester.pump();
 
     expect(find.text('Inicia sesion'), findsOneWidget);
