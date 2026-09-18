@@ -28,6 +28,9 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _products =>
       _db.collection(productsCollection);
 
+  /// Path de la coleccion que lee y escribe el catalogo (p. ej. `products`).
+  String get productsPath => _products.path;
+
   CollectionReference<Map<String, dynamic>> get _vehicleMakes =>
       _db.collection(vehicleMakesCollection);
 
@@ -92,8 +95,10 @@ class FirestoreService {
       query = query.where('categoryId', isEqualTo: categoryId);
     }
 
-    // Se ordena en cliente para no exigir indices compuestos en FASE 2.
-    final QuerySnapshot<Map<String, dynamic>> snap = await query.get();
+    // Siempre servidor: el cache local puede mostrar productos ya borrados.
+    final QuerySnapshot<Map<String, dynamic>> snap = await query.get(
+      const GetOptions(source: Source.server),
+    );
     final List<CatalogProduct> products = snap.docs
         .map(
           (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
@@ -104,33 +109,38 @@ class FirestoreService {
       (CatalogProduct a, CatalogProduct b) =>
           a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
-    // ignore: avoid_print
-    print('[FIRESTORE_DEBUG] fetchProducts count=${products.length}');
     return products;
   }
 
   Future<CatalogProduct?> fetchProductById(String id) async {
-    final DocumentSnapshot<Map<String, dynamic>> snap =
-        await _products.doc(id).get();
+    final DocumentSnapshot<Map<String, dynamic>> snap = await _products
+        .doc(id)
+        .get(const GetOptions(source: Source.server));
     if (!snap.exists || snap.data() == null) {
-      // ignore: avoid_print
-      print(
-        '[FIRESTORE_DEBUG] fetchProductById id=$id name=(null)',
-      );
       return null;
     }
-    final CatalogProduct product =
-        CatalogProduct.fromMap(snap.id, snap.data()!);
-    // ignore: avoid_print
-    print(
-      '[FIRESTORE_DEBUG] fetchProductById id=$id name=${product.name}',
-    );
-    return product;
+    return CatalogProduct.fromMap(snap.id, snap.data()!);
   }
 
+  /// Cuenta documentos en `products` leyendo desde el servidor (sin cache).
   Future<int> countProducts() async {
-    final AggregateQuerySnapshot snap = await _products.count().get();
-    return snap.count ?? 0;
+    int total = 0;
+    QueryDocumentSnapshot<Map<String, dynamic>>? last;
+    while (true) {
+      Query<Map<String, dynamic>> query =
+          _products.orderBy(FieldPath.documentId).limit(500);
+      if (last != null) {
+        query = query.startAfterDocument(last);
+      }
+      final QuerySnapshot<Map<String, dynamic>> snap = await query.get(
+        const GetOptions(source: Source.server),
+      );
+      if (snap.docs.isEmpty) break;
+      total += snap.docs.length;
+      last = snap.docs.last;
+      if (snap.docs.length < 500) break;
+    }
+    return total;
   }
 
   // ---------------------------------------------------------- vehicle catalog
@@ -224,15 +234,15 @@ class FirestoreService {
     await _products.doc(id).delete();
   }
 
-  /// Elimina todos los documentos de [productsCollection] en batches de 500.
-  ///
-  /// Espera cada [WriteBatch.commit]. Devuelve cuantos documentos se borraron.
+  /// Elimina todos los documentos de la coleccion `products` (mismo path que
+  /// [fetchProducts]) en batches de 500, siempre contra el servidor.
   Future<int> deleteAllProducts() async {
     int deleted = 0;
-
-    while (true) {
-      final QuerySnapshot<Map<String, dynamic>> snap =
-          await _products.limit(500).get();
+    // Limite de seguridad: evita bucles infinitos si el commit no avanza.
+    for (int round = 0; round < 200; round++) {
+      final QuerySnapshot<Map<String, dynamic>> snap = await _products
+          .limit(500)
+          .get(const GetOptions(source: Source.server));
       if (snap.docs.isEmpty) break;
 
       final WriteBatch batch = _db.batch();
@@ -241,10 +251,54 @@ class FirestoreService {
       }
       await batch.commit();
       deleted += snap.docs.length;
+    }
+    return deleted;
+  }
 
+  /// Borra de `products` todo documento cuyo id NO este en [keepIds].
+  /// Garantiza que tras un replace no queden huerfanos.
+  Future<int> deleteProductsNotIn(Set<String> keepIds) async {
+    int deleted = 0;
+    QueryDocumentSnapshot<Map<String, dynamic>>? last;
+
+    while (true) {
+      Query<Map<String, dynamic>> query =
+          _products.orderBy(FieldPath.documentId).limit(500);
+      if (last != null) {
+        query = query.startAfterDocument(last);
+      }
+      final QuerySnapshot<Map<String, dynamic>> snap = await query.get(
+        const GetOptions(source: Source.server),
+      );
+      if (snap.docs.isEmpty) break;
+
+      final List<QueryDocumentSnapshot<Map<String, dynamic>>> orphans = snap
+          .docs
+          .where(
+            (QueryDocumentSnapshot<Map<String, dynamic>> d) =>
+                !keepIds.contains(d.id),
+          )
+          .toList();
+
+      if (orphans.isNotEmpty) {
+        for (int i = 0; i < orphans.length; i += 500) {
+          final int end =
+              (i + 500 < orphans.length) ? i + 500 : orphans.length;
+          final List<QueryDocumentSnapshot<Map<String, dynamic>>> chunk =
+              orphans.sublist(i, end);
+          final WriteBatch batch = _db.batch();
+          for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+              in chunk) {
+            batch.delete(doc.reference);
+          }
+          await batch.commit();
+          deleted += chunk.length;
+        }
+      }
+
+      last = snap.docs.last;
       if (snap.docs.length < 500) break;
     }
-
     return deleted;
   }
 

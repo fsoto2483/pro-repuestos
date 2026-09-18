@@ -67,14 +67,31 @@ class CatalogFirestoreSync {
   final AppDatabase db;
   final FirestoreService firestore;
 
-  /// Vacia la coleccion remota `products`. Devuelve null si OK, o el error.
+  /// Vacia la coleccion remota `products` (mismo path que lee el catalogo).
+  /// Devuelve null si OK, o el mensaje de error.
   Future<String?> clearRemoteProducts() async {
     try {
+      final String path = firestore.productsPath;
+      final int before = await firestore.countProducts();
+      // ignore: avoid_print
+      print('[DELETE] collection=$path');
+      // ignore: avoid_print
+      print('[DELETE] count before=$before');
+
       await firestore.deleteAllProducts();
-      final int remaining = await firestore.countProducts();
-      if (remaining != 0) {
+      int after = await firestore.countProducts();
+      // ignore: avoid_print
+      print('[DELETE] count after=$after');
+
+      if (after != 0) {
+        await firestore.deleteAllProducts();
+        after = await firestore.countProducts();
+        // ignore: avoid_print
+        print('[DELETE] count after=$after');
+      }
+      if (after != 0) {
         return 'No se pudo vaciar Firestore products '
-            '(quedan $remaining documentos).';
+            '(quedan $after documentos en $path).';
       }
       return null;
     } catch (e) {
@@ -84,8 +101,11 @@ class CatalogFirestoreSync {
 
   /// Sincroniza Drift → Firestore.
   ///
-  /// Si [replaceCatalog] es true, primero elimina todos los productos remotos
-  /// y solo continua si la coleccion queda vacia.
+  /// Si [replaceCatalog] es true:
+  /// 1) vacia `products` en servidor
+  /// 2) upsert desde Drift
+  /// 3) elimina huerfanos (ids que no estan en Drift)
+  /// 4) verifica count servidor == productos Drift
   Future<FirestoreSyncReport> run({bool replaceCatalog = false}) async {
     int categoriesUpserted = 0;
     int brandsUpserted = 0;
@@ -103,37 +123,22 @@ class CatalogFirestoreSync {
     }
 
     if (replaceCatalog) {
-      try {
-        productsDeleted = await firestore.deleteAllProducts();
-        final int remaining = await firestore.countProducts();
-        if (remaining != 0) {
-          return FirestoreSyncReport(
-            categoriesUpserted: 0,
-            brandsUpserted: 0,
-            productsCreated: 0,
-            productsUpdated: 0,
-            productsDeleted: productsDeleted,
-            aborted: true,
-            errors: <String>[
-              'No se pudo vaciar Firestore products '
-                  '(quedan $remaining documentos). Importacion cancelada.',
-            ],
-          );
-        }
-      } catch (e) {
+      final String? clearError = await clearRemoteProducts();
+      if (clearError != null) {
         return FirestoreSyncReport(
           categoriesUpserted: 0,
           brandsUpserted: 0,
           productsCreated: 0,
           productsUpdated: 0,
-          productsDeleted: productsDeleted,
           aborted: true,
-          errors: <String>[
-            'Fallo al eliminar products en Firestore: $e',
-          ],
+          errors: <String>[clearError],
         );
       }
     }
+
+    final int firestoreBefore = await firestore.countProducts();
+    // ignore: avoid_print
+    print('[SYNC] firestore before=$firestoreBefore');
 
     List<CategoryRow> categoryRows = const <CategoryRow>[];
     List<PartBrandRow> brandRows = const <PartBrandRow>[];
@@ -368,6 +373,58 @@ class CatalogFirestoreSync {
       } catch (e) {
         addError('Producto ${row.id}: $e');
       }
+    }
+
+    if (replaceCatalog) {
+      final Set<String> keepIds = productRows
+          .map((ProductRow r) => r.id)
+          .toSet();
+      try {
+        final int orphans = await firestore.deleteProductsNotIn(keepIds);
+        productsDeleted += orphans;
+      } catch (e) {
+        return FirestoreSyncReport(
+          categoriesUpserted: categoriesUpserted,
+          brandsUpserted: brandsUpserted,
+          productsCreated: productsCreated,
+          productsUpdated: productsUpdated,
+          vehicleMakesUpserted: vehicleMakesUpserted,
+          vehicleModelsUpserted: vehicleModelsUpserted,
+          enginesUpserted: enginesUpserted,
+          productsDeleted: productsDeleted,
+          aborted: true,
+          errors: <String>[
+            'Fallo al eliminar huerfanos en products: $e',
+          ],
+        );
+      }
+
+      final int firestoreAfter = await firestore.countProducts();
+      // ignore: avoid_print
+      print('[SYNC] firestore after=$firestoreAfter');
+
+      if (firestoreAfter != productRows.length) {
+        return FirestoreSyncReport(
+          categoriesUpserted: categoriesUpserted,
+          brandsUpserted: brandsUpserted,
+          productsCreated: productsCreated,
+          productsUpdated: productsUpdated,
+          vehicleMakesUpserted: vehicleMakesUpserted,
+          vehicleModelsUpserted: vehicleModelsUpserted,
+          enginesUpserted: enginesUpserted,
+          productsDeleted: productsDeleted,
+          aborted: true,
+          errors: <String>[
+            'Tras replace, Firestore products=$firestoreAfter pero '
+                'Drift products=${productRows.length} '
+                '(coleccion ${firestore.productsPath}).',
+          ],
+        );
+      }
+    } else {
+      final int firestoreAfter = await firestore.countProducts();
+      // ignore: avoid_print
+      print('[SYNC] firestore after=$firestoreAfter');
     }
 
     return FirestoreSyncReport(
