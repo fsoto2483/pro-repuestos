@@ -7,6 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/catalog_read_source.dart';
 import 'data/repositories/catalog_repository.dart';
+import 'data/repositories/firestore_catalog_repository.dart';
 import 'data/repositories/quotes_repository.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/home_shell.dart';
@@ -34,8 +35,16 @@ class RepuestosProApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final CatalogRepository localRepo =
         catalogRepository ?? CatalogRepository();
+    // UI del catalogo: siempre Firestore (mismo modelo Product).
+    // Drift (localRepo) solo para quotes / import / restore.
     final CatalogReadSource remoteSource =
         catalogReadSource ?? FirestoreCatalogRepository();
+
+    // ignore: avoid_print
+    print(
+      '[FIRESTORE_MODE] app wiring source=${remoteSource.runtimeType} '
+      'importStore=${localRepo.runtimeType}',
+    );
 
     return MultiProvider(
       providers: <SingleChildWidget>[

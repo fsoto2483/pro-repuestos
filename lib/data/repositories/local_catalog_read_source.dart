@@ -8,7 +8,7 @@ import 'catalog_repository.dart';
 
 /// Adaptador Drift para pruebas y herramientas locales.
 ///
-/// La app en produccion usa [FirestoreCatalogRepository].
+/// La app en produccion usa `FirestoreCatalogRepository`.
 class LocalCatalogReadSource implements CatalogReadSource {
   LocalCatalogReadSource(this._repo);
 
