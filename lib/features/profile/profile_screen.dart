@@ -7,12 +7,14 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../data/models/app_user.dart';
 import '../../data/models/product.dart';
+import '../../data/models/user_role.dart';
 import '../../state/auth_controller.dart';
 import '../../state/cart_controller.dart';
 import '../../state/catalog_controller.dart';
 import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_cover.dart';
+import '../admin/users_admin_screen.dart';
 import '../debug/firestore_test_screen.dart';
 import '../import/bulk_import_screen.dart';
 import '../product/product_detail_screen.dart';
@@ -90,22 +92,32 @@ class ProfileScreen extends StatelessWidget {
               ],
 
               const SizedBox(height: 26),
-              Text('Catalogo', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 12),
-              _OptionsCard(
-                options: <_Option>[
-                  _Option(
-                    icon: Icons.upload_file_rounded,
-                    title: 'Carga masiva',
-                    subtitle:
-                        '${catalog.stats?.products ?? 0} referencias · '
-                        'actualiza desde Excel o CSV',
-                    onTap: () => BulkImportScreen.open(context),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 26),
+              if (auth.isAdmin) ...<Widget>[
+                Text(
+                  'Administracion',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                _OptionsCard(
+                  options: <_Option>[
+                    _Option(
+                      icon: Icons.upload_file_rounded,
+                      title: 'Carga masiva',
+                      subtitle:
+                          '${catalog.stats?.products ?? 0} referencias · '
+                          'importar o reemplazar catalogo',
+                      onTap: () => BulkImportScreen.open(context),
+                    ),
+                    _Option(
+                      icon: Icons.manage_accounts_rounded,
+                      title: 'Usuarios',
+                      subtitle: 'Roles admin y cliente',
+                      onTap: () => UsersAdminScreen.open(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 26),
+              ],
               Text('Cuenta', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               _OptionsCard(
@@ -136,18 +148,20 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 22),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const FirestoreTestScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.cloud, size: 20),
-                label: const Text('Firestore Test'),
-              ),
+              if (auth.isAdmin) ...<Widget>[
+                const SizedBox(height: 22),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const FirestoreTestScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.cloud, size: 20),
+                  label: const Text('Firestore Test'),
+                ),
+              ],
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () => _confirmSignOut(context, auth),
@@ -276,6 +290,17 @@ class _ProfileHeader extends StatelessWidget {
                       icon: user.provider == AuthProvider.google
                           ? Icons.g_mobiledata_rounded
                           : Icons.mail_rounded,
+                      dense: true,
+                    ),
+                    Pill(
+                      label: user.role.label,
+                      color: user.isAdmin
+                          ? AppColors.success
+                          : Colors.white,
+                      filled: user.isAdmin,
+                      icon: user.isAdmin
+                          ? Icons.admin_panel_settings_rounded
+                          : Icons.person_outline_rounded,
                       dense: true,
                     ),
                     if (user.workshopName != null)

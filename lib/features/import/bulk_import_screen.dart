@@ -9,19 +9,27 @@ import '../../data/db/app_database.dart';
 import '../../data/import/catalog_sources.dart';
 import '../../data/import/catalog_tables.dart';
 import '../../data/import/import_report.dart';
+import '../../data/models/user_role.dart';
 import '../../state/catalog_controller.dart';
 import '../../widgets/common.dart';
+import '../auth/auth_guard.dart';
 
 /// Carga masiva del catalogo desde archivos CSV o Excel.
 ///
 /// Por defecto actualiza/agrega (upsert a Firestore). Opcionalmente puede
 /// reemplazar por completo la coleccion `products` remota.
+/// Solo administradores.
 class BulkImportScreen extends StatefulWidget {
   const BulkImportScreen({super.key});
 
   static Future<void> open(BuildContext context) {
     return Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(builder: (_) => const BulkImportScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => const AuthGuard(
+          requiredRole: UserRole.admin,
+          child: BulkImportScreen(),
+        ),
+      ),
     );
   }
 

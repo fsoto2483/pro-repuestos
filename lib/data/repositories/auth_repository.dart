@@ -171,10 +171,21 @@ class AuthRepository {
     await FirebaseAuth.instance.signOut();
   }
 
-  /// Mapea el usuario Firebase y crea el documento Firestore si no existe.
+  /// Mapea el usuario Firebase, asegura el doc en `users` y carga rol/status.
+  ///
+  /// Si la cuenta esta suspendida, cierra la sesion de Firebase Auth y falla
+  /// con un mensaje claro para el usuario.
   Future<AppUser> _completeSignIn(User user) async {
-    final AppUser appUser = _mapFirebaseUser(user);
-    await userService.ensureUserDocument(appUser);
+    final AppUser mapped = _mapFirebaseUser(user);
+    final AppUser appUser = await userService.ensureUserDocument(mapped);
+
+    if (appUser.isSuspended) {
+      await signOut();
+      throw const AuthException(
+        'Tu cuenta ha sido suspendida. Contacta al administrador.',
+      );
+    }
+
     return appUser;
   }
 

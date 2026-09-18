@@ -1,0 +1,222 @@
+rules_version = '2';
+service cloud.firestore {
+  // ===============================================================
+  // Assumed Data Model
+  // ===============================================================
+  //
+  // Collection: users
+  // Document ID: Firebase Auth uid
+  // Fields:
+  //   - uid: string (required, immutable, == doc id)
+  //   - nombre: string (required, 1-120)
+  //   - email: string (required, email format)
+  //   - photoUrl: string|null (optional)
+  //   - provider: string (required, 'password' | 'google')
+  //   - role: string (required, 'admin' | 'client')
+  //   - status: string (required, 'active' | 'suspended')
+  //   - workshopName: string (optional)
+  //   - city: string (optional)
+  //   - createdAt: timestamp (required on create)
+  //   - updatedAt: timestamp (optional)
+  //
+  // Collection: products / brands / categories / vehicleMakes /
+  //             vehicleModels / engines
+  // Written by catalog sync and admin import. Clients: read-only.
+  // Suspended users: no read.
+  //
+  // Collection: quotes (reserva para cotizaciones remotas)
+  // Document ID: string
+  // Fields (minimos):
+  //   - userId: string (owner uid)
+  // Suspended users: no create/read/write.
+  //
+  // ===============================================================
+
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasUserDoc() {
+      return exists(userDocPath());
+    }
+
+    function userDoc() {
+      return get(userDocPath()).data;
+    }
+
+    // Cuenta activa. Docs legacy sin `status` se tratan como active.
+    function isActive() {
+      return isAuthenticated()
+        && hasUserDoc()
+        && (
+          !('status' in userDoc())
+          || userDoc().status == 'active'
+        );
+    }
+
+    function isAdmin() {
+      return isActive()
+        && userDoc().role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isValidEmail(email) {
+      return email is string
+        && email.matches('^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$');
+    }
+
+    function validStringLength(value, minLen, maxLen) {
+      return value is string
+        && value.size() >= minLen
+        && value.size() <= maxLen;
+    }
+
+    function isValidRole(value) {
+      return value in ['admin', 'client'];
+    }
+
+    function isValidStatus(value) {
+      return value in ['active', 'suspended'];
+    }
+
+    function isValidProvider(value) {
+      return value in ['password', 'google'];
+    }
+
+    function hasOnlyAllowedUserFields() {
+      return request.resource.data.keys().hasOnly([
+        'uid',
+        'nombre',
+        'email',
+        'photoUrl',
+        'provider',
+        'role',
+        'status',
+        'workshopName',
+        'city',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    // Valida forma del documento users/{userId}. uid debe coincidir con el path.
+    function isValidUser(data, userId) {
+      return hasOnlyAllowedUserFields()
+        && data.uid is string
+        && data.uid == userId
+        && validStringLength(data.nombre, 1, 120)
+        && isValidEmail(data.email)
+        && isValidProvider(data.provider)
+        && isValidRole(data.role)
+        && isValidStatus(data.status)
+        && (!('photoUrl' in data)
+            || data.photoUrl == null
+            || data.photoUrl is string)
+        && (!('workshopName' in data)
+            || data.workshopName == null
+            || validStringLength(data.workshopName, 1, 120))
+        && (!('city' in data)
+            || data.city == null
+            || validStringLength(data.city, 1, 80))
+        && data.createdAt is timestamp;
+    }
+
+    function roleUnchanged() {
+      return request.resource.data.role == resource.data.role;
+    }
+
+    function statusUnchanged() {
+      return request.resource.data.status == resource.data.status;
+    }
+
+    function uidUnchanged() {
+      return request.resource.data.uid == resource.data.uid;
+    }
+
+    function createdAtUnchanged() {
+      return request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /users/{userId} {
+      // Dueño o admin pueden leer el perfil (incluye suspended, para el
+      // chequeo de login y la gestion admin).
+      allow read: if isOwner(userId) || (
+        isAuthenticated()
+        && hasUserDoc()
+        && userDoc().role == 'admin'
+        && (
+          !('status' in userDoc())
+          || userDoc().status == 'active'
+        )
+      );
+
+      allow create: if isOwner(userId)
+        && isValidUser(request.resource.data, userId)
+        && request.resource.data.role == 'client'
+        && request.resource.data.status == 'active';
+
+      // Dueño: puede editar perfil sin tocar role/status.
+      // Admin activo: puede cambiar role y status.
+      allow update: if isValidUser(request.resource.data, userId)
+        && uidUnchanged()
+        && createdAtUnchanged()
+        && (
+          (isOwner(userId) && roleUnchanged() && statusUnchanged())
+          || isAdmin()
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /brands/{brandId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /vehicleMakes/{makeId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /vehicleModels/{modelId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /engines/{engineId} {
+      allow read: if isActive();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Cotizaciones remotas (si se migran a Firestore). Suspendidos: denegado.
+    match /quotes/{quoteId} {
+      allow read: if isActive() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isActive()
+        && request.resource.data.keys().hasAll(['userId'])
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isActive() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+  }
+}

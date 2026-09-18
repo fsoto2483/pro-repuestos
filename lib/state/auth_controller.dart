@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/models/app_user.dart';
+import '../data/models/user_role.dart';
 import '../data/repositories/auth_repository.dart';
 
 enum AuthStatus { signedOut, authenticating, signedIn }
@@ -21,6 +22,11 @@ class AuthController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isBusy => _status == AuthStatus.authenticating;
   bool get isSignedIn => _status == AuthStatus.signedIn && _user != null;
+  UserRole get role => _user?.role ?? UserRole.client;
+  bool get isAdmin => _user?.isAdmin ?? false;
+  bool get isClient => isSignedIn && !isAdmin;
+  bool get isActive => _user?.isActive ?? false;
+  bool get isSuspended => _user?.isSuspended ?? false;
 
   Future<bool> signInWithPassword({
     required String email,
