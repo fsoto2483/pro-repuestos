@@ -41,6 +41,10 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       return;
     }
 
+    // Activar de inmediato (evita que el Switch quede en false mientras
+    // el dialogo esta abierto — fallo tipico en Flutter Web).
+    setState(() => _replaceCatalog = true);
+
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -65,13 +69,12 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     );
 
     if (!mounted) return;
-    setState(() => _replaceCatalog = confirmed ?? false);
+    if (confirmed != true) {
+      setState(() => _replaceCatalog = false);
+    }
   }
 
   Future<void> _pickAndImport() async {
-    // Flag capturado al iniciar: el flujo de sync usa este valor, no el widget.
-    final bool replaceCatalog = _replaceCatalog;
-
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       dialogTitle: 'Archivos del catalogo',
       type: FileType.custom,
@@ -89,10 +92,16 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
 
     if (!mounted) return;
 
+    // Fuente de verdad DEL IMPORT: confirmar modo DESPUES del picker
+    // (el Switch solo puede perderse en web tras awaits / remounts).
+    final bool replaceCatalog = await _resolveReplaceCatalogForImport();
+    if (!mounted) return;
+
     setState(() {
       _working = true;
       _report = null;
       _pickedNames = files.map((SourceFile f) => f.name).toList();
+      _replaceCatalog = replaceCatalog;
     });
 
     try {
@@ -129,6 +138,42 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
         SnackBar(content: Text('Error durante la importacion: $e')),
       );
     }
+  }
+
+  /// Decide el flag que se envia a [CatalogController.importFiles].
+  ///
+  /// Si el Switch esta activo, exige confirmacion explicita ahora (post-picker).
+  /// Ese resultado booleano es el que viaja hasta [CatalogFirestoreSync.run].
+  Future<bool> _resolveReplaceCatalogForImport() async {
+    if (!_replaceCatalog) {
+      return false;
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Confirmar reemplazo'),
+        content: const Text(
+          'Vas a ELIMINAR todos los productos de Firestore y dejar solo '
+          'los del Excel.\n\n'
+          'Esto no se puede deshacer desde la app.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Solo actualizar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+            child: const Text('Reemplazar completo'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed == true;
   }
 
   Future<void> _restore() async {

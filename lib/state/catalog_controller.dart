@@ -331,9 +331,8 @@ class CatalogController extends ChangeNotifier {
   /// para no dejar huerfanos.
   Future<ImportReport> importFiles(
     List<SourceFile> files, {
-    bool replaceCatalog = false,
+    required bool replaceCatalog,
   }) async {
-    // Captura inmediata: no depende del estado de la UI despues del await.
     final bool replace = replaceCatalog;
     final CatalogFirestoreSync sync = CatalogFirestoreSync(db: _importStore.db);
 

@@ -72,22 +72,11 @@ class CatalogFirestoreSync {
   Future<String?> clearRemoteProducts() async {
     try {
       final String path = firestore.productsPath;
-      final int before = await firestore.countProducts();
-      // ignore: avoid_print
-      print('[DELETE] collection=$path');
-      // ignore: avoid_print
-      print('[DELETE] count before=$before');
-
       await firestore.deleteAllProducts();
       int after = await firestore.countProducts();
-      // ignore: avoid_print
-      print('[DELETE] count after=$after');
-
       if (after != 0) {
         await firestore.deleteAllProducts();
         after = await firestore.countProducts();
-        // ignore: avoid_print
-        print('[DELETE] count after=$after');
       }
       if (after != 0) {
         return 'No se pudo vaciar Firestore products '
@@ -135,10 +124,6 @@ class CatalogFirestoreSync {
         );
       }
     }
-
-    final int firestoreBefore = await firestore.countProducts();
-    // ignore: avoid_print
-    print('[SYNC] firestore before=$firestoreBefore');
 
     List<CategoryRow> categoryRows = const <CategoryRow>[];
     List<PartBrandRow> brandRows = const <PartBrandRow>[];
@@ -400,8 +385,6 @@ class CatalogFirestoreSync {
       }
 
       final int firestoreAfter = await firestore.countProducts();
-      // ignore: avoid_print
-      print('[SYNC] firestore after=$firestoreAfter');
 
       if (firestoreAfter != productRows.length) {
         return FirestoreSyncReport(
@@ -421,10 +404,6 @@ class CatalogFirestoreSync {
           ],
         );
       }
-    } else {
-      final int firestoreAfter = await firestore.countProducts();
-      // ignore: avoid_print
-      print('[SYNC] firestore after=$firestoreAfter');
     }
 
     return FirestoreSyncReport(
