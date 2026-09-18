@@ -310,7 +310,13 @@ class CatalogFirestoreSync {
       });
     }
 
+    int productosEnviados = 0;
+    int productosExitosos = 0;
+    int failedProducts = 0;
+    final List<String> productFailures = <String>[];
+
     for (final ProductRow row in productRows) {
+      productosEnviados++;
       try {
         final CatalogProduct? existing =
             await firestore.fetchProductById(row.id);
@@ -350,14 +356,43 @@ class CatalogFirestoreSync {
           fitments: fitments,
         );
 
+        productosExitosos++;
         if (existed) {
           productsUpdated++;
         } else {
           productsCreated++;
         }
-      } catch (e) {
-        addError('Producto ${row.id}: $e');
+      } catch (e, st) {
+        failedProducts++;
+        productFailures.add(
+          'Producto ${row.id} sku=${row.sku}: $e\n$st',
+        );
       }
+    }
+
+    // ignore: avoid_print
+    print(
+      '[SYNC] productos drift=${productRows.length} '
+      'enviados=$productosEnviados '
+      'exitosos=$productosExitosos '
+      'fallidos=$failedProducts',
+    );
+
+    if (productosExitosos + failedProducts != productRows.length) {
+      throw Exception(
+        'Conteo inconsistente de productos: '
+        'drift=${productRows.length} '
+        'exitosos=$productosExitosos '
+        'fallidos=$failedProducts',
+      );
+    }
+
+    if (failedProducts > 0) {
+      final String sample = productFailures.take(20).join('\n---\n');
+      throw Exception(
+        'Firestore rechazo $failedProducts de ${productRows.length} productos.\n'
+        '$sample',
+      );
     }
 
     if (replaceCatalog) {
