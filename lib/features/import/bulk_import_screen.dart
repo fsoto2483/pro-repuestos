@@ -92,10 +92,10 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
 
     if (!mounted) return;
 
-    // Fuente de verdad DEL IMPORT: confirmar modo DESPUES del picker
-    // (el Switch solo puede perderse en web tras awaits / remounts).
-    final bool replaceCatalog = await _resolveReplaceCatalogForImport();
+    // Fuente de verdad: dialogo post-picker (no depender del Switch tras awaits).
+    final bool? replaceCatalog = await _resolveReplaceCatalogForImport();
     if (!mounted) return;
+    if (replaceCatalog == null) return;
 
     setState(() {
       _working = true;
@@ -140,29 +140,29 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     }
   }
 
-  /// Decide el flag que se envia a [CatalogController.importFiles].
+  /// Devuelve:
+  /// - `true`  → Reemplazar completo (obligara deleteAllProducts en el sync)
+  /// - `false` → Solo actualizar
+  /// - `null`  → usuario cancelo el dialogo (no importar)
   ///
-  /// Si el Switch esta activo, exige confirmacion explicita ahora (post-picker).
-  /// Ese resultado booleano es el que viaja hasta [CatalogFirestoreSync.run].
-  Future<bool> _resolveReplaceCatalogForImport() async {
-    if (!_replaceCatalog) {
-      return false;
-    }
-
-    final bool? confirmed = await showDialog<bool>(
+  /// No usa `_replaceCatalog` como early-return: tras FilePicker en web ese
+  /// campo suele quedar en false aunque el Switch se hubiera activado.
+  Future<bool?> _resolveReplaceCatalogForImport() async {
+    return showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Confirmar reemplazo'),
+        title: const Text('Modo de importacion'),
         content: const Text(
-          'Vas a ELIMINAR todos los productos de Firestore y dejar solo '
-          'los del Excel.\n\n'
-          'Esto no se puede deshacer desde la app.',
+          'Elige como aplicar el Excel a Firestore:\n\n'
+          '• Actualizar: crea/actualiza sin borrar.\n'
+          '• Reemplazar completo: elimina TODOS los productos '
+          'y deja solo los del Excel.',
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Solo actualizar'),
+            child: const Text('Actualizar'),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -172,8 +172,6 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
         ],
       ),
     );
-
-    return confirmed == true;
   }
 
   Future<void> _restore() async {
