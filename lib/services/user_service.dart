@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:flutter/foundation.dart';
 
 import '../data/models/app_user.dart';
 import '../data/models/user_role.dart';
@@ -23,28 +24,68 @@ class UserService {
   /// siempre devuelve el perfil con rol/status leidos desde Firestore.
   Future<AppUser> ensureUserDocument(AppUser user) async {
     final DocumentReference<Map<String, dynamic>> doc = _users.doc(user.id);
-    final DocumentSnapshot<Map<String, dynamic>> snap = await doc.get();
 
-    if (!snap.exists) {
-      await doc.set(<String, dynamic>{
-        'uid': user.id,
-        'nombre': user.fullName,
-        'email': user.email,
-        'photoUrl': user.photoUrl,
-        'provider': user.provider.name,
-        'role': UserRole.client.firestoreValue,
-        'status': UserStatus.active.firestoreValue,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      return user.copyWith(
-        role: UserRole.client,
-        status: UserStatus.active,
+    try {
+      final DocumentSnapshot<Map<String, dynamic>> snap = await doc.get();
+
+      if (!snap.exists) {
+        await doc.set(_newUserPayload(user));
+        return user.copyWith(
+          role: UserRole.client,
+          status: UserStatus.active,
+        );
+      }
+
+      final Map<String, dynamic> data =
+          Map<String, dynamic>.from(snap.data() ?? <String, dynamic>{});
+
+      // Docs legacy sin status: rellena active sin tocar el rol.
+      if (!data.containsKey('status')) {
+        try {
+          await doc.set(
+            <String, dynamic>{
+              'status': UserStatus.active.firestoreValue,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
+          data['status'] = UserStatus.active.firestoreValue;
+        } catch (e) {
+          debugPrint('UserService: no se pudo backfill status: $e');
+        }
+      }
+
+      return _fromFirestore(user.id, data, fallback: user);
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'UserService.ensureUserDocument FirebaseException '
+        'code=${e.code} message=${e.message}',
       );
+      rethrow;
     }
+  }
 
-    final Map<String, dynamic> data = snap.data() ?? <String, dynamic>{};
-    return _fromFirestore(user.id, data, fallback: user);
+  Map<String, dynamic> _newUserPayload(AppUser user) {
+    final Timestamp now = Timestamp.now();
+    final String nombre = user.fullName.trim().isEmpty
+        ? user.email.trim()
+        : user.fullName.trim();
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'uid': user.id,
+      'nombre': nombre,
+      'email': user.email.trim(),
+      'provider': user.provider.name,
+      'role': UserRole.client.firestoreValue,
+      'status': UserStatus.active.firestoreValue,
+      // Timestamp de cliente: evita falsos permission-denied con
+      // serverTimestamp() en reglas (`createdAt is timestamp`).
+      'createdAt': now,
+      'updatedAt': now,
+    };
+    if (user.photoUrl != null && user.photoUrl!.trim().isNotEmpty) {
+      payload['photoUrl'] = user.photoUrl!.trim();
+    }
+    return payload;
   }
 
   /// Lee el documento del usuario autenticado (o el [uid] indicado).

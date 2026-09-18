@@ -50,19 +50,16 @@ class AuthRepository {
           'No se pudo iniciar sesion. Intenta de nuevo.',
         );
       }
-      return _completeSignIn(user);
+      return await _completeSignIn(user);
     } on AuthException {
       rethrow;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      throw AuthException(
-        e.message ?? 'No se pudo sincronizar el perfil del usuario.',
-      );
-    } catch (_) {
-      throw const AuthException(
-        'Ocurrio un error inesperado. Intenta de nuevo.',
-      );
+      throw AuthException(_mapFirebaseError(e));
+    } catch (e, st) {
+      debugPrint('signInWithPassword: $e\n$st');
+      throw AuthException(_unexpectedMessage(e));
     }
   }
 
@@ -97,7 +94,7 @@ class AuthRepository {
           'No se pudo iniciar sesion con Google.',
         );
       }
-      return _completeSignIn(user);
+      return await _completeSignIn(user);
     } on AuthException {
       rethrow;
     } on GoogleSignInException catch (e) {
@@ -110,13 +107,10 @@ class AuthRepository {
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      throw AuthException(
-        e.message ?? 'No se pudo sincronizar el perfil del usuario.',
-      );
-    } catch (_) {
-      throw const AuthException(
-        'Ocurrio un error inesperado. Intenta de nuevo.',
-      );
+      throw AuthException(_mapFirebaseError(e));
+    } catch (e, st) {
+      debugPrint('signInWithGoogle: $e\n$st');
+      throw AuthException(_unexpectedMessage(e));
     }
   }
 
@@ -140,24 +134,26 @@ class AuthRepository {
 
       final String name = fullName.trim();
       if (name.isNotEmpty) {
-        await user.updateDisplayName(name);
-        await user.reload();
+        try {
+          await user.updateDisplayName(name);
+          await user.reload();
+        } catch (e) {
+          // El perfil Auth se puede completar despues; no bloquea el registro.
+          debugPrint('registerWithPassword displayName: $e');
+        }
       }
 
       final User refreshed = FirebaseAuth.instance.currentUser ?? user;
-      return _completeSignIn(refreshed);
+      return await _completeSignIn(refreshed);
     } on AuthException {
       rethrow;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_mapFirebaseAuthError(e));
     } on FirebaseException catch (e) {
-      throw AuthException(
-        e.message ?? 'No se pudo sincronizar el perfil del usuario.',
-      );
-    } catch (_) {
-      throw const AuthException(
-        'Ocurrio un error inesperado. Intenta de nuevo.',
-      );
+      throw AuthException(_mapFirebaseError(e));
+    } catch (e, st) {
+      debugPrint('registerWithPassword: $e\n$st');
+      throw AuthException(_unexpectedMessage(e));
     }
   }
 
@@ -176,17 +172,34 @@ class AuthRepository {
   /// Si la cuenta esta suspendida, cierra la sesion de Firebase Auth y falla
   /// con un mensaje claro para el usuario.
   Future<AppUser> _completeSignIn(User user) async {
-    final AppUser mapped = _mapFirebaseUser(user);
-    final AppUser appUser = await userService.ensureUserDocument(mapped);
+    try {
+      final AppUser mapped = _mapFirebaseUser(user);
+      final AppUser appUser = await userService.ensureUserDocument(mapped);
 
-    if (appUser.isSuspended) {
-      await signOut();
-      throw const AuthException(
-        'Tu cuenta ha sido suspendida. Contacta al administrador.',
-      );
+      if (appUser.isSuspended) {
+        await signOut();
+        throw const AuthException(
+          'Tu cuenta ha sido suspendida. Contacta al administrador.',
+        );
+      }
+
+      return appUser;
+    } on AuthException {
+      rethrow;
+    } on FirebaseException catch (e) {
+      // Auth quedo abierta pero el perfil Firestore fallo: cerrar para no
+      // dejar una sesion a medias.
+      try {
+        await signOut();
+      } catch (_) {}
+      throw AuthException(_mapFirebaseError(e));
+    } catch (e, st) {
+      debugPrint('_completeSignIn: $e\n$st');
+      try {
+        await signOut();
+      } catch (_) {}
+      throw AuthException(_unexpectedMessage(e));
     }
-
-    return appUser;
   }
 
   AppUser _mapFirebaseUser(User user) {
@@ -229,5 +242,27 @@ class AuthRepository {
       default:
         return e.message ?? 'No se pudo completar la autenticacion.';
     }
+  }
+
+  String _mapFirebaseError(FirebaseException e) {
+    switch (e.code) {
+      case 'permission-denied':
+        return 'No se pudo crear tu perfil (permiso denegado en Firestore). '
+            'Pide al administrador desplegar las reglas actualizadas.';
+      case 'unavailable':
+      case 'network-request-failed':
+        return 'Sin conexion con Firestore. Revisa tu internet.';
+      default:
+        return e.message ??
+            'No se pudo sincronizar el perfil del usuario (${e.code}).';
+    }
+  }
+
+  String _unexpectedMessage(Object e) {
+    final String detail = e.toString();
+    if (detail.isEmpty || detail == 'Exception') {
+      return 'Ocurrio un error inesperado. Intenta de nuevo.';
+    }
+    return 'No se pudo completar el acceso. $detail';
   }
 }
