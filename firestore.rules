@@ -108,6 +108,17 @@ service cloud.firestore {
       return request.resource.data.createdAt == resource.data.createdAt;
     }
 
+    // Migracion legacy: doc sin role ni status. El dueño puede agregar
+    // UNA sola vez role=client y status=active (sin auto-promocion).
+    function isLegacyRoleStatusBackfill() {
+      return !('role' in resource.data)
+        && !('status' in resource.data)
+        && request.resource.data.role == 'client'
+        && request.resource.data.status == 'active'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['role', 'status', 'updatedAt']);
+    }
+
     match /users/{userId} {
       // get: dueño (aunque suspended o sin doc aun) o admin activo.
       // list: solo admin activo (UsersAdminScreen).
@@ -127,14 +138,27 @@ service cloud.firestore {
         && request.resource.data.role == 'client'
         && request.resource.data.status == 'active';
 
-      // Dueño: perfil sin cambiar role/status.
+      // Dueño: perfil sin cambiar role/status (ya fijados).
+      // Dueño legacy: backfill unico role=client + status=active.
       // Admin activo: puede cambiar role y status.
-      allow update: if isValidUserShape(request.resource.data, userId)
-        && uidUnchanged()
+      allow update: if uidUnchanged()
         && createdAtUnchanged()
         && (
-          (isOwner(userId) && roleUnchanged() && statusUnchanged())
-          || isAdmin()
+          (
+            isOwner(userId)
+            && isValidUserShape(request.resource.data, userId)
+            && roleUnchanged()
+            && statusUnchanged()
+          )
+          || (
+            isOwner(userId)
+            && isLegacyRoleStatusBackfill()
+            && isValidUserShape(request.resource.data, userId)
+          )
+          || (
+            isAdmin()
+            && isValidUserShape(request.resource.data, userId)
+          )
         );
 
       allow delete: if isAdmin();

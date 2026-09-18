@@ -10,7 +10,6 @@ import '../../widgets/app_logo.dart';
 import '../cart/cart_screen.dart';
 import '../catalog/catalog_screen.dart';
 import '../categories/categories_screen.dart';
-import '../debug/firestore_test_screen.dart';
 import '../profile/profile_screen.dart';
 
 /// Contenedor principal de la app una vez el usuario inicio sesion.
@@ -49,33 +48,12 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     final int cartCount = context.watch<CartController>().distinctCount;
-    final bool isAdmin = context.select<AuthController, bool>(
-      (AuthController auth) => auth.isAdmin,
-    );
     final bool rail = context.usesSideNavigation;
 
     final Widget body = IndexedStack(index: _index, children: pages);
 
-    final PreferredSizeWidget appBar = AppBar(
-      actions: <Widget>[
-        if (isAdmin)
-          IconButton(
-            icon: const Icon(Icons.cloud),
-            tooltip: 'Firestore Test',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FirestoreTestScreen(),
-                ),
-              );
-            },
-          ),
-      ],
-    );
-
     if (rail) {
       return Scaffold(
-        appBar: appBar,
         body: Row(
           children: <Widget>[
             _SideNav(
@@ -92,7 +70,6 @@ class _HomeShellState extends State<HomeShell> {
     }
 
     return Scaffold(
-      appBar: appBar,
       body: body,
       bottomNavigationBar: _BottomNav(
         index: _index,

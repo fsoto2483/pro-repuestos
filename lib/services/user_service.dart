@@ -37,20 +37,22 @@ class UserService {
     final Map<String, dynamic> data =
         Map<String, dynamic>.from(snap.data() ?? <String, dynamic>{});
 
-    // Docs legacy sin status: rellena active sin tocar el rol.
-    if (!data.containsKey('status')) {
+    // Docs legacy sin role/status: backfill unico client+active.
+    if (!data.containsKey('role') && !data.containsKey('status')) {
       try {
         await doc.set(
           <String, dynamic>{
+            'role': UserRole.client.firestoreValue,
             'status': UserStatus.active.firestoreValue,
             'updatedAt': FieldValue.serverTimestamp(),
           },
           SetOptions(merge: true),
         );
+        data['role'] = UserRole.client.firestoreValue;
         data['status'] = UserStatus.active.firestoreValue;
       } on FirebaseException catch (e) {
         debugPrint(
-          'UserService.ensureUserDocument backfill status: '
+          'UserService.ensureUserDocument backfill role/status: '
           'code=${e.code} message=${e.message}',
         );
       }
