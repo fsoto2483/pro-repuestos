@@ -3,19 +3,26 @@
 # En GitHub → Settings → Secrets and variables → Actions, crea:
 #
 #   FIREBASE_SERVICE_ACCOUNT
-#     JSON de una cuenta de servicio de Google Cloud / Firebase con roles:
-#       - Firebase Hosting Admin
-#       - Cloud Functions Viewer (si el action lo pide)
-#       - Service Account User (a veces requerido)
+#     JSON completo de una cuenta de servicio de Google Cloud / Firebase.
 #
-# Cómo generar el JSON:
-#   1. Firebase Console → Project settings → Service accounts
-#   2. "Generate new private key"
-#   3. Pega el contenido completo del JSON como valor del secret
+# Cómo obtenerlo:
+#   1. Firebase Console → Project settings (engranaje) → Service accounts
+#   2. "Generate new private key" → descarga el .json
+#   3. Copia TODO el contenido del JSON y pégalo como valor del secret
+#
+# Roles recomendados en la cuenta de servicio:
+#   - Firebase Hosting Admin
+#   - Service Account User (si el deploy lo pide)
 #
 # Proyecto Firebase: repuestospro-prod
 # Hosting public dir: build/web (ver firebase.json)
+# Repo: fsoto2483/pro-repuestos
 #
 # Flujos:
-#   - push a main    → canal live (producción)
-#   - push a develop → canal develop (pruebas)
+#   - push a main    → .github/workflows/firebase-hosting.yml → canal live
+#   - push a develop → .github/workflows/firebase-hosting-develop.yml → canal develop
+#
+# Alternativa (CLI local / token CI, NO usado por estos workflows):
+#   npx firebase-tools login:ci
+#   → imprime un token; se usaría como secret FIREBASE_TOKEN con
+#     `firebase deploy --only hosting --token "$FIREBASE_TOKEN"`

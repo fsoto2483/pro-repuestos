@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../services/firestore_service.dart';
 import '../db/app_database.dart';
 import '../mappers/catalog_product_mapper.dart';
@@ -17,7 +19,13 @@ class FirestoreCatalogRepository implements CatalogReadSource {
   FirestoreCatalogRepository({
     this.firestore = const FirestoreService(),
     this.mapper = const CatalogProductMapper(),
-  });
+  }) {
+    // ignore: avoid_print
+    print(
+      '[FIRESTORE_DEBUG] FirestoreCatalogRepository init '
+      'projectId=${FirebaseFirestore.instance.app.options.projectId}',
+    );
+  }
 
   final FirestoreService firestore;
   final CatalogProductMapper mapper;

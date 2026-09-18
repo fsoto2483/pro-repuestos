@@ -42,8 +42,8 @@ class RepuestosProApp extends StatelessWidget {
 
     // ignore: avoid_print
     print(
-      '[FIRESTORE_MODE] app wiring source=${remoteSource.runtimeType} '
-      'importStore=${localRepo.runtimeType}',
+      '[FIRESTORE_DEBUG] CatalogReadSource.runtimeType='
+      '${remoteSource.runtimeType}',
     );
 
     return MultiProvider(

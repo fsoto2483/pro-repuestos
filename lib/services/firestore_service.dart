@@ -104,14 +104,28 @@ class FirestoreService {
       (CatalogProduct a, CatalogProduct b) =>
           a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
+    // ignore: avoid_print
+    print('[FIRESTORE_DEBUG] fetchProducts count=${products.length}');
     return products;
   }
 
   Future<CatalogProduct?> fetchProductById(String id) async {
     final DocumentSnapshot<Map<String, dynamic>> snap =
         await _products.doc(id).get();
-    if (!snap.exists || snap.data() == null) return null;
-    return CatalogProduct.fromMap(snap.id, snap.data()!);
+    if (!snap.exists || snap.data() == null) {
+      // ignore: avoid_print
+      print(
+        '[FIRESTORE_DEBUG] fetchProductById id=$id name=(null)',
+      );
+      return null;
+    }
+    final CatalogProduct product =
+        CatalogProduct.fromMap(snap.id, snap.data()!);
+    // ignore: avoid_print
+    print(
+      '[FIRESTORE_DEBUG] fetchProductById id=$id name=${product.name}',
+    );
+    return product;
   }
 
   Future<int> countProducts() async {
