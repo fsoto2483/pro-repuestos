@@ -9,7 +9,6 @@ import '../../data/db/app_database.dart';
 import '../../data/import/catalog_sources.dart';
 import '../../data/import/catalog_tables.dart';
 import '../../data/import/import_report.dart';
-import '../../services/firestore_service.dart';
 import '../../state/catalog_controller.dart';
 import '../../widgets/common.dart';
 
@@ -70,8 +69,9 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
   }
 
   Future<void> _pickAndImport() async {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] BulkImportScreen._pickAndImport INICIO');
+    // Flag capturado al iniciar: el flujo de sync usa este valor, no el widget.
+    final bool replaceCatalog = _replaceCatalog;
+
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       dialogTitle: 'Archivos del catalogo',
       type: FileType.custom,
@@ -79,26 +79,12 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       withData: true,
     );
 
-    if (result == null) {
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG] usuario cancelo picker');
-      return;
-    }
+    if (result == null) return;
 
     final List<SourceFile> files = <SourceFile>[];
-
     for (final PlatformFile file in result.files) {
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG] PlatformFile name=${file.name} '
-          'bytesNull=${file.bytes == null} size=${file.size}');
       if (file.bytes == null) continue;
-
-      files.add(
-        SourceFile(
-          name: file.name,
-          bytes: file.bytes!,
-        ),
-      );
+      files.add(SourceFile(name: file.name, bytes: file.bytes!));
     }
 
     if (!mounted) return;
@@ -110,54 +96,11 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
     });
 
     try {
-      if (_replaceCatalog) {
-        // ignore: avoid_print
-        print('[IMPORT]\nModo: REEMPLAZAR CATALOGO');
-        try {
-          final int deleted =
-              await const FirestoreService().deleteAllProducts();
-          // ignore: avoid_print
-          print('[IMPORT]\nProductos eliminados: $deleted');
-        } catch (e) {
-          // ignore: avoid_print
-          print('[IMPORT]\nError al eliminar productos: $e');
-          if (!mounted) return;
-          setState(() {
-            _working = false;
-            _report = ImportReport.failure(
-              'No se pudo eliminar el catalogo en Firestore. '
-              'La importacion no se inicio. Detalle: $e',
-            );
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Error al eliminar el catalogo. No se importo nada.',
-              ),
-            ),
-          );
-          return;
-        }
-      }
-
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG] enviando a CatalogController.importFiles '
-          'count=${files.length}');
       final ImportReport report =
-          await context.read<CatalogController>().importFiles(files);
-      // ignore: avoid_print
-      print('[IMPORT_DEBUG] BulkImportScreen report.applied=${report.applied} '
-          'fatal=${report.fatalError} summary=${report.summary}');
-
-      if (_replaceCatalog) {
-        final int imported = report.results
-            .where((TableResult r) => r.table == CatalogTable.products)
-            .fold<int>(0, (int sum, TableResult r) => sum + r.accepted);
-        // ignore: avoid_print
-        print('[IMPORT]\nProductos importados: $imported');
-        // ignore: avoid_print
-        print('[IMPORT]\nProceso completado');
-      }
+          await context.read<CatalogController>().importFiles(
+                files,
+                replaceCatalog: replaceCatalog,
+              );
 
       if (!mounted) return;
 
@@ -180,9 +123,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       if (!mounted) return;
       setState(() {
         _working = false;
-        _report = ImportReport.failure(
-          'Error durante la importacion: $e',
-        );
+        _report = ImportReport.failure('Error durante la importacion: $e');
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error durante la importacion: $e')),

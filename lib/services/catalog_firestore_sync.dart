@@ -18,6 +18,8 @@ class FirestoreSyncReport {
     this.vehicleMakesUpserted = 0,
     this.vehicleModelsUpserted = 0,
     this.enginesUpserted = 0,
+    this.aborted = false,
+    this.productsDeleted = 0,
   });
 
   final int categoriesUpserted;
@@ -29,9 +31,18 @@ class FirestoreSyncReport {
   final int enginesUpserted;
   final List<String> errors;
 
+  /// true si el modo replace fallo al vaciar `products` y no se escribio nada.
+  final bool aborted;
+  final int productsDeleted;
+
   bool get hasErrors => errors.isNotEmpty;
 
   String get summary {
+    if (aborted) {
+      return errors.isEmpty
+          ? 'Sincronizacion abortada: no se pudo vaciar products.'
+          : errors.first;
+    }
     final String base =
         'Firestore: $productsCreated productos creados, '
         '$productsUpdated actualizados'
@@ -45,9 +56,8 @@ class FirestoreSyncReport {
 
 /// Copia el catalogo Drift hacia Firestore.
 ///
-/// Fuente: tablas ya cargadas en SQLite (p. ej. desde el Excel consolidado).
-/// Usa upsert (merge). No borra documentos remotos. Los fallos por registro
-/// se acumulan en [FirestoreSyncReport.errors] y no abortan el lote.
+/// Con [run] `replaceCatalog: false` (default): solo upsert/merge.
+/// Con `replaceCatalog: true`: vacia `products`, verifica 0 docs, luego upsert.
 class CatalogFirestoreSync {
   CatalogFirestoreSync({
     required this.db,
@@ -57,7 +67,26 @@ class CatalogFirestoreSync {
   final AppDatabase db;
   final FirestoreService firestore;
 
-  Future<FirestoreSyncReport> run() async {
+  /// Vacia la coleccion remota `products`. Devuelve null si OK, o el error.
+  Future<String?> clearRemoteProducts() async {
+    try {
+      await firestore.deleteAllProducts();
+      final int remaining = await firestore.countProducts();
+      if (remaining != 0) {
+        return 'No se pudo vaciar Firestore products '
+            '(quedan $remaining documentos).';
+      }
+      return null;
+    } catch (e) {
+      return 'Fallo al eliminar products en Firestore: $e';
+    }
+  }
+
+  /// Sincroniza Drift → Firestore.
+  ///
+  /// Si [replaceCatalog] es true, primero elimina todos los productos remotos
+  /// y solo continua si la coleccion queda vacia.
+  Future<FirestoreSyncReport> run({bool replaceCatalog = false}) async {
     int categoriesUpserted = 0;
     int brandsUpserted = 0;
     int productsCreated = 0;
@@ -65,11 +94,45 @@ class CatalogFirestoreSync {
     int vehicleMakesUpserted = 0;
     int vehicleModelsUpserted = 0;
     int enginesUpserted = 0;
+    int productsDeleted = 0;
     final List<String> errors = <String>[];
 
     void addError(String error) {
       errors.add(error);
       debugPrint(error);
+    }
+
+    if (replaceCatalog) {
+      try {
+        productsDeleted = await firestore.deleteAllProducts();
+        final int remaining = await firestore.countProducts();
+        if (remaining != 0) {
+          return FirestoreSyncReport(
+            categoriesUpserted: 0,
+            brandsUpserted: 0,
+            productsCreated: 0,
+            productsUpdated: 0,
+            productsDeleted: productsDeleted,
+            aborted: true,
+            errors: <String>[
+              'No se pudo vaciar Firestore products '
+                  '(quedan $remaining documentos). Importacion cancelada.',
+            ],
+          );
+        }
+      } catch (e) {
+        return FirestoreSyncReport(
+          categoriesUpserted: 0,
+          brandsUpserted: 0,
+          productsCreated: 0,
+          productsUpdated: 0,
+          productsDeleted: productsDeleted,
+          aborted: true,
+          errors: <String>[
+            'Fallo al eliminar products en Firestore: $e',
+          ],
+        );
+      }
     }
 
     List<CategoryRow> categoryRows = const <CategoryRow>[];
@@ -128,13 +191,6 @@ class CatalogFirestoreSync {
     } catch (e) {
       addError('No se pudieron leer engines de Drift: $e');
     }
-
-    // Conteos Drift antes de escribir en Firestore.
-    debugPrint('Drift product_images: ${imageRows.length}');
-    debugPrint('Drift fitments: ${fitmentRows.length}');
-    debugPrint('Drift vehicle_makes: ${makeRows.length}');
-    debugPrint('Drift vehicle_models: ${modelRows.length}');
-    debugPrint('Drift engines: ${engineRows.length}');
 
     for (final CategoryRow row in categoryRows) {
       try {
@@ -314,14 +370,6 @@ class CatalogFirestoreSync {
       }
     }
 
-    debugPrint('Categorias: $categoriesUpserted');
-    debugPrint('Marcas: $brandsUpserted');
-    debugPrint('Productos: $productsUpdated');
-    debugPrint('VehicleMakes: $vehicleMakesUpserted');
-    debugPrint('VehicleModels: $vehicleModelsUpserted');
-    debugPrint('Engines: $enginesUpserted');
-    debugPrint('Errores: ${errors.length}');
-
     return FirestoreSyncReport(
       categoriesUpserted: categoriesUpserted,
       brandsUpserted: brandsUpserted,
@@ -330,6 +378,7 @@ class CatalogFirestoreSync {
       vehicleMakesUpserted: vehicleMakesUpserted,
       vehicleModelsUpserted: vehicleModelsUpserted,
       enginesUpserted: enginesUpserted,
+      productsDeleted: productsDeleted,
       errors: errors,
     );
   }

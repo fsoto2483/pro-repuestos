@@ -325,14 +325,42 @@ class CatalogController extends ChangeNotifier {
   // ---------------------------------------------------------- carga masiva
 
   /// Importa a Drift y sincroniza a Firestore; luego recarga desde Firestore.
-  Future<ImportReport> importFiles(List<SourceFile> files) async {
-    // ignore: avoid_print
-    print('[IMPORT_DEBUG] CatalogController.importFiles INICIO');
-    final ImportReport report = await _importStore.importFiles(files);
-    if (report.applied) {
-      await CatalogFirestoreSync(db: _importStore.db).run();
-      await load();
+  ///
+  /// [replaceCatalog]: si es true, vacia `products` en Firestore (y verifica
+  /// que quede vacia) antes de importar, y el sync vuelve a vaciar + upsert
+  /// para no dejar huerfanos.
+  Future<ImportReport> importFiles(
+    List<SourceFile> files, {
+    bool replaceCatalog = false,
+  }) async {
+    // Captura inmediata: no depende del estado de la UI despues del await.
+    final bool replace = replaceCatalog;
+    final CatalogFirestoreSync sync = CatalogFirestoreSync(db: _importStore.db);
+
+    if (replace) {
+      final String? clearError = await sync.clearRemoteProducts();
+      if (clearError != null) {
+        return ImportReport.failure(clearError);
+      }
     }
+
+    final ImportReport report = await _importStore.importFiles(files);
+    if (!report.applied) {
+      return report;
+    }
+
+    final FirestoreSyncReport syncReport = await sync.run(
+      replaceCatalog: replace,
+    );
+    if (syncReport.aborted) {
+      return ImportReport.failure(
+        syncReport.errors.isNotEmpty
+            ? syncReport.errors.first
+            : 'No se pudo reemplazar el catalogo en Firestore.',
+      );
+    }
+
+    await load();
     return report;
   }
 
