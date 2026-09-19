@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/location/browser_geolocation_stub.dart'
+    if (dart.library.html) '../../core/location/browser_geolocation_web.dart'
+    as browser_geo;
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../models/workshop_data.dart';
@@ -197,70 +199,38 @@ class _WorkshopProfileScreenState extends State<WorkshopProfileScreen> {
         }
       }
 
-      // En web se evita isLocationServiceEnabled (MissingPluginException).
-      final Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
       debugPrint(
-        'LAT=${position.latitude} LNG=${position.longitude}',
+        'GEO INSTANCE: ${GeolocatorPlatform.instance.runtimeType}',
       );
 
-      _lat = position.latitude;
-      _lng = position.longitude;
+      late final double latitude;
+      late final double longitude;
 
       try {
-        final List<Placemark> places = await placemarkFromCoordinates(
-          position.latitude,
-          position.longitude,
+        final Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
         );
-        if (places.isNotEmpty) {
-          final Placemark p = places.first;
-          final String street = <String?>[
-            p.thoroughfare,
-            p.subThoroughfare,
-          ]
-              .whereType<String>()
-              .where((String s) => s.trim().isNotEmpty)
-              .join(' ');
-          final String fallbackName = (p.name ?? '').trim();
-
-          setState(() {
-            _departamentoCtrl.text =
-                (p.administrativeArea ?? '').trim().isNotEmpty
-                    ? p.administrativeArea!.trim()
-                    : _departamentoCtrl.text;
-            _provinciaCtrl.text =
-                (p.subAdministrativeArea ?? '').trim().isNotEmpty
-                    ? p.subAdministrativeArea!.trim()
-                    : _provinciaCtrl.text;
-            _distritoCtrl.text = (p.locality ?? p.subLocality ?? '')
-                    .trim()
-                    .isNotEmpty
-                ? (p.locality ?? p.subLocality)!.trim()
-                : _distritoCtrl.text;
-            final String address =
-                street.isNotEmpty ? street : fallbackName;
-            if (address.isNotEmpty) {
-              _direccionCtrl.text = address;
-            }
-          });
-        }
-
-        debugPrint('Departamento=${_departamentoCtrl.text}');
-      } catch (_) {
-        // Coordenadas ya guardadas; geocoding puede fallar (p.ej. web).
-        if (mounted) {
-          _snack(
-            'Ubicación obtenida.\n'
-            'Completa dirección, distrito y provincia manualmente.',
-          );
-        }
+        latitude = position.latitude;
+        longitude = position.longitude;
+      } catch (e) {
+        if (!kIsWeb) rethrow;
+        debugPrint('Geolocator web fallo, usando dart:html: $e');
+        final ({double latitude, double longitude}) browser =
+            await browser_geo.getBrowserCurrentPosition();
+        latitude = browser.latitude;
+        longitude = browser.longitude;
       }
 
-      if (mounted) setState(() {});
+      debugPrint('LAT=$latitude LNG=$longitude');
+
+      if (!mounted) return;
+      setState(() {
+        _lat = latitude;
+        _lng = longitude;
+      });
+      _snack('Ubicación obtenida correctamente.');
     } catch (e, s) {
       final String msg = e.toString().toLowerCase();
       final bool permissionDenied = e is PermissionDeniedException ||

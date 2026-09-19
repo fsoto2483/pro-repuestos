@@ -126,7 +126,7 @@ class ProfileScreen extends StatelessWidget {
                   _Option(
                     icon: Icons.store_mall_directory_rounded,
                     title: 'Datos del taller',
-                    subtitle: 'Razon social, NIT y direccion de despacho',
+                    subtitle: 'Razon social, RUC y direccion de despacho',
                     onTap: () => WorkshopProfileScreen.open(context),
                   ),
                   _Option(
