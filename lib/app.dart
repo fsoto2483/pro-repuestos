@@ -8,9 +8,9 @@ import 'data/repositories/auth_repository.dart';
 import 'data/repositories/catalog_read_source.dart';
 import 'data/repositories/catalog_repository.dart';
 import 'data/repositories/firestore_catalog_repository.dart';
-import 'data/repositories/quotes_repository.dart';
 import 'features/auth/login_screen.dart';
 import 'features/shell/home_shell.dart';
+import 'services/quote_service.dart';
 import 'state/auth_controller.dart';
 import 'state/cart_controller.dart';
 import 'state/catalog_controller.dart';
@@ -36,7 +36,7 @@ class RepuestosProApp extends StatelessWidget {
     final CatalogRepository localRepo =
         catalogRepository ?? CatalogRepository();
     // UI del catalogo: siempre Firestore (mismo modelo Product).
-    // Drift (localRepo) solo para quotes / import / restore.
+    // Drift (localRepo) para import / restore locales.
     final CatalogReadSource remoteSource =
         catalogReadSource ?? FirestoreCatalogRepository();
 
@@ -53,9 +53,7 @@ class RepuestosProApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<CartController>(create: (_) => CartController()),
         ChangeNotifierProvider<QuotesController>(
-          create: (_) => QuotesController(
-            QuotesRepository(database: localRepo.db),
-          ),
+          create: (_) => QuotesController(const QuoteService()),
         ),
       ],
       child: MaterialApp(

@@ -7,13 +7,14 @@ import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../data/models/app_user.dart';
 import '../../data/models/cart_item.dart';
-import '../../data/models/quote.dart';
+import '../../models/quote.dart';
 import '../../state/auth_controller.dart';
 import '../../state/cart_controller.dart';
+import '../../state/catalog_controller.dart';
 import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 
-/// Confirma la cotizacion: datos del cliente + resumen + guardado en SQLite.
+/// Confirma la cotización: datos del cliente + resumen + guardado en Firestore.
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -54,19 +55,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _confirm() async {
-    debugPrint('[QUOTE_DEBUG] CheckoutScreen._confirm INICIO');
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      debugPrint('[QUOTE_DEBUG] CheckoutScreen validacion fallo');
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final CartController cart = context.read<CartController>();
     final QuotesController quotes = context.read<QuotesController>();
-    final AppUser? user = context.read<AuthController>().user;
-    debugPrint(
-      '[QUOTE_DEBUG] CheckoutScreen cartItems=${cart.items.length} '
-      'user=${user?.id} email=${_emailCtrl.text}',
-    );
+    final CatalogController catalog = context.read<CatalogController>();
 
     if (cart.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,22 +70,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final Quote? saved = await quotes.confirmQuote(
       cart: cart,
-      user: user,
-      customer: QuoteCustomerInput(
-        name: _nameCtrl.text,
-        phone: _phoneCtrl.text,
-        email: _emailCtrl.text,
-        companyName: _companyCtrl.text,
-      ),
+      customerName: _nameCtrl.text,
+      customerPhone: _phoneCtrl.text,
+      customerEmail: _emailCtrl.text,
+      vehicleBrand: catalog.selectedMake?.name ?? '',
+      vehicleModel: catalog.selectedModel?.name ?? '',
+      vehicleYear: '',
+      vehicleEngine: catalog.selectedEngine?.name ?? '',
     );
 
     if (!mounted) return;
 
     if (saved == null) {
-      debugPrint(
-        '[QUOTE_DEBUG] CheckoutScreen confirmQuote devolvio null '
-        'error=${quotes.error}',
-      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(quotes.error ?? 'No se pudo guardar la cotizacion.'),
@@ -101,28 +90,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    debugPrint('[QUOTE_DEBUG] CheckoutScreen EXITO id=${saved.id}');
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Cotizacion guardada'),
-        content: Text(
-          'Se registro la cotizacion ${saved.id} por '
-          '${Formatters.price(saved.total)}. '
-          'Puedes verla en Perfil → Mis cotizaciones.',
-        ),
-        actions: <Widget>[
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cotización guardada correctamente')),
     );
 
-    if (!mounted) return;
     Navigator.of(context).pop();
   }
 
@@ -169,8 +140,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                             validator: (String? v) =>
                                 (v == null || v.trim().isEmpty)
-                                ? 'Ingresa el nombre'
-                                : null,
+                                    ? 'Ingresa el nombre'
+                                    : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -183,8 +154,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                             validator: (String? v) =>
                                 (v == null || v.trim().isEmpty)
-                                ? 'Ingresa el telefono'
-                                : null,
+                                    ? 'Ingresa el telefono'
+                                    : null,
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -214,8 +185,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                             validator: (String? v) =>
                                 (v == null || v.trim().isEmpty)
-                                ? 'Ingresa la empresa'
-                                : null,
+                                    ? 'Ingresa la empresa'
+                                    : null,
                           ),
                         ],
                       ),
@@ -246,11 +217,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.check_circle_outline_rounded),
+                          : const Icon(Icons.save_rounded),
                       label: Text(
                         quotes.saving
                             ? 'Guardando...'
-                            : 'Confirmar cotizacion',
+                            : 'Guardar Cotización',
                       ),
                     ),
                   ],
@@ -321,26 +292,28 @@ class _TotalsCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
 
     Widget row(String label, String value, {bool strong = false}) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Text(
-              label,
-              style: strong
-                  ? theme.textTheme.titleMedium
-                  : theme.textTheme.bodyMedium?.copyWith(color: AppColors.slate),
-            ),
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  label,
+                  style: strong
+                      ? theme.textTheme.titleMedium
+                      : theme.textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.slate),
+                ),
+              ),
+              Text(
+                value,
+                style: strong
+                    ? theme.textTheme.titleLarge
+                        ?.copyWith(color: AppColors.brand)
+                    : theme.textTheme.labelLarge,
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: strong
-                ? theme.textTheme.titleLarge?.copyWith(color: AppColors.brand)
-                : theme.textTheme.labelLarge,
-          ),
-        ],
-      ),
-    );
+        );
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -352,7 +325,7 @@ class _TotalsCard extends StatelessWidget {
       child: Column(
         children: <Widget>[
           row('Subtotal', Formatters.price(cart.subtotal)),
-          row('IVA (19 %)', Formatters.price(cart.iva)),
+          row('IGV', Formatters.price(cart.iva)),
           const Divider(height: 18),
           row('Total', Formatters.price(cart.total), strong: true),
         ],

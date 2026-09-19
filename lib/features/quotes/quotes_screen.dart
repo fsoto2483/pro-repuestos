@@ -6,12 +6,13 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
-import '../../data/models/quote.dart';
+import '../../models/quote.dart';
+import '../../services/quote_service.dart';
 import '../../state/auth_controller.dart';
 import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 
-/// Historial de cotizaciones guardadas en el dispositivo.
+/// Historial de cotizaciones — fuente única: stream de Firestore.
 class QuotesScreen extends StatefulWidget {
   const QuotesScreen({super.key});
 
@@ -26,18 +27,26 @@ class QuotesScreen extends StatefulWidget {
 }
 
 class _QuotesScreenState extends State<QuotesScreen> {
+  late Stream<List<Quote>> _quotesStream;
+  String? _userId;
+  late QuoteService _service;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final String? userId = context.read<AuthController>().user?.id;
-      context.read<QuotesController>().load(userId: userId);
+    _userId = context.read<AuthController>().user?.id;
+    _service = context.read<QuotesController>().service;
+    _quotesStream = _service.watchUserQuotes(_userId);
+  }
+
+  void _retry() {
+    setState(() {
+      _quotesStream = _service.watchUserQuotes(_userId);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final QuotesController quotes = context.watch<QuotesController>();
     final double gutter = context.horizontalPadding;
 
     return Scaffold(
@@ -45,28 +54,53 @@ class _QuotesScreenState extends State<QuotesScreen> {
       body: SafeArea(
         child: ContentWidth(
           maxWidth: 820,
-          child: quotes.loading && quotes.quotes.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : quotes.quotes.isEmpty
-              ? const EmptyState(
+          child: StreamBuilder<List<Quote>>(
+            stream: _quotesStream,
+            builder: (
+              BuildContext context,
+              AsyncSnapshot<List<Quote>> snapshot,
+            ) {
+              if (snapshot.hasError) {
+                return EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: 'Error',
+                  message: 'No se pudieron cargar las cotizaciones.',
+                  actionLabel: 'Reintentar',
+                  onAction: _retry,
+                );
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final List<Quote> quotes = snapshot.data ?? const <Quote>[];
+
+              if (quotes.isEmpty) {
+                return const EmptyState(
                   icon: Icons.receipt_long_outlined,
                   title: 'Sin cotizaciones',
                   message:
-                      'Cuando confirmes una cotizacion desde el carrito, '
+                      'Cuando guardes una cotizacion desde el carrito, '
                       'aparecera aqui.',
-                )
-              : ListView.separated(
-                  padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 28),
-                  itemCount: quotes.quotes.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (BuildContext context, int index) {
-                    final Quote quote = quotes.quotes[index];
-                    return _QuoteTile(
-                      quote: quote,
-                      onTap: () => QuoteDetailScreen.open(context, quote.id),
-                    );
-                  },
-                ),
+                );
+              }
+
+              return ListView.separated(
+                padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 28),
+                itemCount: quotes.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (BuildContext context, int index) {
+                  final Quote quote = quotes[index];
+                  return _QuoteTile(
+                    quote: quote,
+                    onTap: () => QuoteDetailScreen.open(context, quote.id),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -115,9 +149,9 @@ class _QuoteTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      quote.companyName.isEmpty
-                          ? quote.customerName
-                          : quote.companyName,
+                      quote.quoteNumber.isNotEmpty
+                          ? quote.quoteNumber
+                          : quote.customerName,
                       style: theme.textTheme.titleSmall,
                     ),
                     const SizedBox(height: 2),
@@ -126,6 +160,13 @@ class _QuoteTile extends StatelessWidget {
                       '${Formatters.plural(quote.itemCount, 'referencia', 'referencias')}',
                       style: theme.textTheme.bodySmall,
                     ),
+                    if (quote.customerName.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        quote.customerName,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -176,8 +217,8 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
 
   Future<void> _load() async {
     final Quote? quote = await context.read<QuotesController>().fetchById(
-      widget.quoteId,
-    );
+          widget.quoteId,
+        );
     if (!mounted) return;
     setState(() {
       _quote = quote;
@@ -197,58 +238,83 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : quote == null
-            ? const EmptyState(
-                icon: Icons.error_outline_rounded,
-                title: 'No encontrada',
-                message: 'Esta cotizacion ya no esta disponible.',
-              )
-            : ContentWidth(
-                maxWidth: 820,
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 28),
-                  children: <Widget>[
-                    Text(quote.id, style: theme.textTheme.titleLarge),
-                    const SizedBox(height: 4),
-                    Text(
-                      _dateFmt.format(quote.createdAt),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 18),
-                    _InfoCard(
-                      title: 'Cliente',
-                      lines: <String>[
-                        quote.customerName,
-                        if (quote.customerPhone.isNotEmpty)
-                          quote.customerPhone,
-                        quote.customerEmail,
-                        if (quote.companyName.isNotEmpty) quote.companyName,
+                ? const EmptyState(
+                    icon: Icons.error_outline_rounded,
+                    title: 'No encontrada',
+                    message: 'Esta cotizacion ya no esta disponible.',
+                  )
+                : ContentWidth(
+                    maxWidth: 820,
+                    child: ListView(
+                      padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 28),
+                      children: <Widget>[
+                        Text(
+                          quote.quoteNumber.isNotEmpty
+                              ? quote.quoteNumber
+                              : quote.id,
+                          style: theme.textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _dateFmt.format(quote.createdAt),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 18),
+                        _InfoCard(
+                          title: 'Cliente',
+                          lines: <String>[
+                            quote.customerName,
+                            if (quote.customerPhone.isNotEmpty)
+                              quote.customerPhone,
+                            quote.customerEmail,
+                          ],
+                        ),
+                        if (_hasVehicle(quote)) ...<Widget>[
+                          const SizedBox(height: 16),
+                          _InfoCard(
+                            title: 'Vehiculo',
+                            lines: <String>[
+                              if (quote.vehicleBrand.isNotEmpty)
+                                quote.vehicleBrand,
+                              if (quote.vehicleModel.isNotEmpty)
+                                quote.vehicleModel,
+                              if (quote.vehicleYear.isNotEmpty)
+                                quote.vehicleYear,
+                              if (quote.vehicleEngine.isNotEmpty)
+                                quote.vehicleEngine,
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Text('Productos', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 10),
+                        ...quote.items.map(
+                          (QuoteItem item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _ItemCard(item: item),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _InfoCard(
+                          title: 'Totales',
+                          lines: <String>[
+                            'Subtotal: ${Formatters.price(quote.subtotal)}',
+                            'IGV: ${Formatters.price(quote.igv)}',
+                            'Total: ${Formatters.price(quote.total)}',
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text('Productos', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 10),
-                    ...quote.items.map(
-                      (QuoteItem item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _ItemCard(item: item),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoCard(
-                      title: 'Totales',
-                      lines: <String>[
-                        'Subtotal: ${Formatters.price(quote.subtotal)}',
-                        'IVA (${(quote.taxRate * 100).round()} %): '
-                            '${Formatters.price(quote.taxAmount)}',
-                        'Total: ${Formatters.price(quote.total)}',
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                  ),
       ),
     );
   }
+
+  bool _hasVehicle(Quote quote) =>
+      quote.vehicleBrand.isNotEmpty ||
+      quote.vehicleModel.isNotEmpty ||
+      quote.vehicleYear.isNotEmpty ||
+      quote.vehicleEngine.isNotEmpty;
 }
 
 class _InfoCard extends StatelessWidget {
@@ -305,21 +371,18 @@ class _ItemCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(item.productName, style: theme.textTheme.titleSmall),
+                Text(item.descripcion, style: theme.textTheme.titleSmall),
                 const SizedBox(height: 4),
-                Text(
-                  '${item.sku} · ${item.brandName}',
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(item.codigo, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
-              Text('x${item.quantity}', style: theme.textTheme.labelLarge),
+              Text('x${item.cantidad}', style: theme.textTheme.labelLarge),
               Text(
-                Formatters.price(item.lineTotal),
+                Formatters.price(item.total),
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: AppColors.brand,
                 ),

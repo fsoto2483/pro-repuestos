@@ -262,12 +262,27 @@ service cloud.firestore {
     }
 
     match /quotes/{quoteId} {
-      allow read: if isActive() && (
-        resource.data.userId == request.auth.uid || isAdmin()
+      // Dueño lee las suyas; admin lee todas.
+      allow read: if isAuthenticated() && hasUserDoc() && (
+        (isActive() && resource.data.userId == request.auth.uid) ||
+        isAdmin()
       );
       allow create: if isActive()
-        && request.resource.data.keys().hasAll(['userId'])
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.keys().hasAll([
+          'userId',
+          'quoteNumber',
+          'customerName',
+          'items',
+          'subtotal',
+          'igv',
+          'total',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userId is string
+        && request.resource.data.quoteNumber is string
+        && request.resource.data.items is list;
       allow update, delete: if isActive() && (
         resource.data.userId == request.auth.uid || isAdmin()
       );

@@ -26,14 +26,22 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  QuotesController? _quotesController;
 
   @override
   void initState() {
     super.initState();
+    _quotesController = context.read<QuotesController>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final String? userId = context.read<AuthController>().user?.id;
-      context.read<QuotesController>().load(userId: userId);
+      _quotesController?.startListening(userId: userId);
     });
+  }
+
+  @override
+  void dispose() {
+    _quotesController?.stopListening();
+    super.dispose();
   }
 
   void _goTo(int index) => setState(() => _index = index);
