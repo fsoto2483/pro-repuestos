@@ -19,6 +19,7 @@ import '../debug/firestore_test_screen.dart';
 import '../import/bulk_import_screen.dart';
 import '../product/product_detail_screen.dart';
 import '../quotes/quotes_screen.dart';
+import 'workshop_profile_screen.dart';
 
 /// Perfil del usuario: datos de la cuenta, favoritos y opciones.
 class ProfileScreen extends StatelessWidget {
@@ -122,10 +123,11 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 12),
               _OptionsCard(
                 options: <_Option>[
-                  const _Option(
+                  _Option(
                     icon: Icons.store_mall_directory_rounded,
                     title: 'Datos del taller',
                     subtitle: 'Razon social, NIT y direccion de despacho',
+                    onTap: () => WorkshopProfileScreen.open(context),
                   ),
                   _Option(
                     icon: Icons.receipt_long_rounded,

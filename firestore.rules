@@ -8,7 +8,7 @@ service cloud.firestore {
   // Document ID: Firebase Auth uid
   // Fields:
   //   - uid, nombre, email, provider, role, status (required on create)
-  //   - photoUrl, workshopName, city (optional)
+  //   - photoUrl, workshopName, city, workshop (optional)
   //   - createdAt, updatedAt (timestamps)
   //
   // Catalog: products, brands, categories, vehicleMakes,
@@ -71,9 +71,62 @@ service cloud.firestore {
         'status',
         'workshopName',
         'city',
+        'workshop',
         'createdAt',
         'updatedAt'
       ]);
+    }
+
+    // Objeto opcional users/{uid}.workshop (Datos del Taller).
+    function isValidWorkshop(value) {
+      return value is map
+        && value.keys().hasOnly([
+          'razonSocial',
+          'nombreComercial',
+          'ruc',
+          'propietario',
+          'telefono',
+          'whatsapp',
+          'correo',
+          'direccion',
+          'referencia',
+          'departamento',
+          'provincia',
+          'distrito',
+          'lat',
+          'lng',
+          'updatedAt'
+        ])
+        && value.get('razonSocial', '') is string
+        && value.get('razonSocial', '').size() <= 200
+        && value.get('nombreComercial', '') is string
+        && value.get('nombreComercial', '').size() <= 200
+        && value.get('ruc', '') is string
+        && value.get('ruc', '').size() <= 32
+        && value.get('propietario', '') is string
+        && value.get('propietario', '').size() <= 120
+        && value.get('telefono', '') is string
+        && value.get('telefono', '').size() <= 40
+        && value.get('whatsapp', '') is string
+        && value.get('whatsapp', '').size() <= 40
+        && value.get('correo', '') is string
+        && value.get('correo', '').size() <= 254
+        && value.get('direccion', '') is string
+        && value.get('direccion', '').size() <= 300
+        && value.get('referencia', '') is string
+        && value.get('referencia', '').size() <= 300
+        && value.get('departamento', '') is string
+        && value.get('departamento', '').size() <= 120
+        && value.get('provincia', '') is string
+        && value.get('provincia', '').size() <= 120
+        && value.get('distrito', '') is string
+        && value.get('distrito', '').size() <= 120
+        && (value.get('lat', null) == null || value.lat is number)
+        && (value.get('lng', null) == null || value.lng is number)
+        && (
+          !('updatedAt' in value)
+          || value.updatedAt is timestamp
+        );
     }
 
     function isValidUserShape(data, userId) {
@@ -88,7 +141,8 @@ service cloud.firestore {
         && isValidProvider(data.provider)
         && isValidRole(data.role)
         && data.get('status', 'active') in ['active', 'suspended']
-        && data.createdAt is timestamp;
+        && data.createdAt is timestamp
+        && (!('workshop' in data) || isValidWorkshop(data.workshop));
     }
 
     function roleUnchanged() {
@@ -106,6 +160,17 @@ service cloud.firestore {
 
     function createdAtUnchanged() {
       return request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // Dueño: solo escribe workshop (+ updatedAt). No toca role/status.
+    function isOwnerWorkshopUpdate(userId) {
+      return isOwner(userId)
+        && roleUnchanged()
+        && statusUnchanged()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['workshop', 'updatedAt'])
+        && 'workshop' in request.resource.data
+        && isValidWorkshop(request.resource.data.workshop);
     }
 
     // Migracion legacy: doc sin role ni status. El dueño puede agregar
@@ -139,6 +204,7 @@ service cloud.firestore {
         && request.resource.data.status == 'active';
 
       // Dueño: perfil sin cambiar role/status (ya fijados).
+      // Dueño: update de workshop (Datos del Taller).
       // Dueño legacy: backfill unico role=client + status=active.
       // Admin activo: puede cambiar role y status.
       allow update: if uidUnchanged()
@@ -150,6 +216,7 @@ service cloud.firestore {
             && roleUnchanged()
             && statusUnchanged()
           )
+          || isOwnerWorkshopUpdate(userId)
           || (
             isOwner(userId)
             && isLegacyRoleStatusBackfill()
