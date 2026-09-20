@@ -39,7 +39,7 @@ class QuoteService {
     String vehicleModel = '',
     String vehicleYear = '',
     String vehicleEngine = '',
-    String status = 'saved',
+    String status = 'pending',
   }) async {
     if (items.isEmpty) {
       throw StateError('No se puede guardar una cotizacion vacia.');
@@ -56,6 +56,7 @@ class QuoteService {
     final String contacto = customerName.trim();
     final String telefono = customerPhone.trim();
     final String correo = customerEmail.trim().toLowerCase();
+    final String crmStatus = QuoteStatus.fromString(status).value;
 
     final Map<String, dynamic> customer = <String, dynamic>{
       'razonSocial': razon,
@@ -80,7 +81,10 @@ class QuoteService {
       'vehicleModel': vehicleModel.trim(),
       'vehicleYear': vehicleYear.trim(),
       'vehicleEngine': vehicleEngine.trim(),
-      'status': status.trim().isEmpty ? 'saved' : status.trim(),
+      'status': crmStatus,
+      'notes': '',
+      'assignedTo': '',
+      'lastContactAt': null,
       'subtotal': subtotal,
       'igv': igv,
       'total': total,
@@ -109,7 +113,9 @@ class QuoteService {
           vehicleModel: vehicleModel.trim(),
           vehicleYear: vehicleYear.trim(),
           vehicleEngine: vehicleEngine.trim(),
-          status: status.trim().isEmpty ? 'saved' : status.trim(),
+          status: crmStatus,
+          notes: '',
+          assignedTo: '',
           subtotal: subtotal,
           igv: igv,
           total: total,
@@ -220,6 +226,70 @@ class QuoteService {
 
       debugPrint('QUOTE LOADED: ${quotes.length}');
       return quotes;
+    });
+  }
+
+  /// Stream de todas las cotizaciones (admin). Orden: createdAt DESC.
+  Stream<List<Quote>> getAllQuotes() {
+    return _quotes
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((QuerySnapshot<Map<String, dynamic>> snap) {
+      final List<Quote> quotes = snap.docs
+          .map(
+            (QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
+                Quote.fromMap(doc.id, doc.data()),
+          )
+          .toList();
+      debugPrint('QUOTE ALL LOADED: ${quotes.length}');
+      return quotes;
+    });
+  }
+
+  Future<void> updateQuoteStatus(String quoteId, String status) async {
+    if (quoteId.isEmpty) {
+      throw ArgumentError('quoteId es obligatorio.');
+    }
+    final String crmStatus = QuoteStatus.fromString(status).value;
+    await _quotes.doc(quoteId).update(<String, dynamic>{
+      'status': crmStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateQuoteNotes(String quoteId, String notes) async {
+    if (quoteId.isEmpty) {
+      throw ArgumentError('quoteId es obligatorio.');
+    }
+    await _quotes.doc(quoteId).update(<String, dynamic>{
+      'notes': notes.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateLastContact(String quoteId) async {
+    if (quoteId.isEmpty) {
+      throw ArgumentError('quoteId es obligatorio.');
+    }
+    await _quotes.doc(quoteId).update(<String, dynamic>{
+      'lastContactAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Guarda seguimiento CRM (estado + notas) en una sola escritura.
+  Future<void> saveQuoteFollowUp({
+    required String quoteId,
+    required String status,
+    required String notes,
+  }) async {
+    if (quoteId.isEmpty) {
+      throw ArgumentError('quoteId es obligatorio.');
+    }
+    await _quotes.doc(quoteId).update(<String, dynamic>{
+      'status': QuoteStatus.fromString(status).value,
+      'notes': notes.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 

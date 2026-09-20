@@ -150,7 +150,7 @@ class QuotesController extends ChangeNotifier {
         subtotal: cart.subtotal,
         igv: cart.iva,
         total: cart.total,
-        status: 'saved',
+        status: 'pending',
       );
 
       cart.clear();

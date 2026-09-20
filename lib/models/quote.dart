@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'quote_item.dart';
+import 'quote_status.dart';
 
 export 'quote_item.dart';
+export 'quote_status.dart';
 
 /// Cotización persistida en `quotes/{quoteId}`.
 @immutable
@@ -34,6 +36,9 @@ class Quote {
     this.customerReferencia = '',
     this.customerRazonSocial = '',
     this.customerNombreComercial = '',
+    this.notes = '',
+    this.assignedTo = '',
+    this.lastContactAt,
     this.items = const <QuoteItem>[],
   });
 
@@ -59,7 +64,13 @@ class Quote {
   final String vehicleModel;
   final String vehicleYear;
   final String vehicleEngine;
+
+  /// Estado comercial CRM (`pending`, `contacted`, ...).
   final String status;
+  final String notes;
+  final String assignedTo;
+  final DateTime? lastContactAt;
+
   final double subtotal;
   final double igv;
   final double total;
@@ -68,6 +79,8 @@ class Quote {
   final List<QuoteItem> items;
 
   int get itemCount => items.length;
+
+  QuoteStatus get statusEnum => QuoteStatus.fromString(status);
 
   /// Mapa de cliente para logs / PDF (equivalente a `quote.customer`).
   Map<String, String> get customer => <String, String>{
@@ -177,7 +190,10 @@ class Quote {
       vehicleModel: _str(map['vehicleModel']),
       vehicleYear: _str(map['vehicleYear']),
       vehicleEngine: _str(map['vehicleEngine']),
-      status: _str(map['status']).isEmpty ? 'saved' : _str(map['status']),
+      status: QuoteStatus.fromString(_str(map['status'])).value,
+      notes: _str(map['notes']),
+      assignedTo: _str(map['assignedTo']),
+      lastContactAt: _date(map['lastContactAt']),
       subtotal: _double(map['subtotal']),
       igv: _double(map['igv']),
       total: _double(map['total']),
@@ -215,7 +231,14 @@ class Quote {
       'vehicleModel': vehicleModel.trim(),
       'vehicleYear': vehicleYear.trim(),
       'vehicleEngine': vehicleEngine.trim(),
-      'status': status.trim().isEmpty ? 'saved' : status.trim(),
+      'status': status.trim().isEmpty
+          ? QuoteStatus.pending.value
+          : status.trim(),
+      'notes': notes.trim(),
+      'assignedTo': assignedTo.trim(),
+      'lastContactAt': lastContactAt == null
+          ? null
+          : Timestamp.fromDate(lastContactAt!),
       'subtotal': subtotal,
       'igv': igv,
       'total': total,
@@ -250,6 +273,10 @@ class Quote {
     String? vehicleYear,
     String? vehicleEngine,
     String? status,
+    String? notes,
+    String? assignedTo,
+    DateTime? lastContactAt,
+    bool clearLastContactAt = false,
     double? subtotal,
     double? igv,
     double? total,
@@ -279,6 +306,10 @@ class Quote {
       vehicleYear: vehicleYear ?? this.vehicleYear,
       vehicleEngine: vehicleEngine ?? this.vehicleEngine,
       status: status ?? this.status,
+      notes: notes ?? this.notes,
+      assignedTo: assignedTo ?? this.assignedTo,
+      lastContactAt:
+          clearLastContactAt ? null : (lastContactAt ?? this.lastContactAt),
       subtotal: subtotal ?? this.subtotal,
       igv: igv ?? this.igv,
       total: total ?? this.total,

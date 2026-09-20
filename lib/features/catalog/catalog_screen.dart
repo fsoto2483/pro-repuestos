@@ -13,9 +13,7 @@ import '../../widgets/common.dart';
 import '../product/product_detail_screen.dart';
 import 'widgets/category_chips.dart';
 import 'widgets/filters_sheet.dart';
-import 'widgets/product_card.dart';
 import 'widgets/product_grid.dart';
-import 'widgets/promo_banner.dart';
 import 'widgets/search_bar_field.dart';
 import 'widgets/vehicle_filter.dart';
 
@@ -293,38 +291,6 @@ class _ResultsHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Carrusel horizontal de productos destacados.
-class _FeaturedRow extends StatelessWidget {
-  const _FeaturedRow({required this.products, required this.gutter});
-
-  final List<Product> products;
-  final double gutter;
-
-  @override
-  Widget build(BuildContext context) {
-    const double cardWidth = 222;
-    const double coverHeight = 150;
-
-    return SizedBox(
-      height: coverHeight + 190,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        itemCount: products.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 14),
-        itemBuilder: (BuildContext context, int index) => SizedBox(
-          width: cardWidth,
-          child: ProductCard(
-            product: products[index],
-            coverHeight: coverHeight,
-            onTap: () => ProductDetailScreen.open(context, products[index]),
-          ),
-        ),
-      ),
     );
   }
 }

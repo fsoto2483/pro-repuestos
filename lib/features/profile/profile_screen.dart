@@ -14,6 +14,7 @@ import '../../state/catalog_controller.dart';
 import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_cover.dart';
+import '../admin/admin_quotes_screen.dart';
 import '../admin/users_admin_screen.dart';
 import '../debug/firestore_test_screen.dart';
 import '../import/bulk_import_screen.dart';
@@ -102,18 +103,29 @@ class ProfileScreen extends StatelessWidget {
                 _OptionsCard(
                   options: <_Option>[
                     _Option(
+                      icon: Icons.manage_accounts_rounded,
+                      title: 'Usuarios',
+                      subtitle: 'Roles admin y cliente',
+                      onTap: () => UsersAdminScreen.open(context),
+                    ),
+                    _Option(
                       icon: Icons.upload_file_rounded,
-                      title: 'Carga masiva',
+                      title: 'Catalogo',
                       subtitle:
                           '${catalog.stats?.products ?? 0} referencias · '
                           'importar o reemplazar catalogo',
                       onTap: () => BulkImportScreen.open(context),
                     ),
                     _Option(
-                      icon: Icons.manage_accounts_rounded,
-                      title: 'Usuarios',
-                      subtitle: 'Roles admin y cliente',
-                      onTap: () => UsersAdminScreen.open(context),
+                      icon: Icons.request_quote_rounded,
+                      title: 'CRM Cotizaciones',
+                      subtitle: 'Gestion y seguimiento comercial',
+                      onTap: () => AdminQuotesScreen.open(context),
+                    ),
+                    const _Option(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Inventario',
+                      subtitle: 'Proximamente',
                     ),
                   ],
                 ),
