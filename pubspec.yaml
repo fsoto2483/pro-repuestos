@@ -35,6 +35,8 @@ dependencies:
   geolocator_web: ^4.1.4
   flutter_web_plugins:
     sdk: flutter
+  pdf: ^3.11.1
+  printing: ^5.14.0
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +53,7 @@ flutter:
     - assets/data/
     - assets/images/
     - assets/icons/
+    - assets/fonts/
 
   fonts:
     - family: Manrope

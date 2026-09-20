@@ -25,15 +25,36 @@ class Quote {
     required this.total,
     required this.createdAt,
     required this.updatedAt,
+    this.customerDocument = '',
+    this.customerWhatsapp = '',
+    this.customerAddress = '',
+    this.customerDepartamento = '',
+    this.customerProvincia = '',
+    this.customerDistrito = '',
+    this.customerReferencia = '',
+    this.customerRazonSocial = '',
+    this.customerNombreComercial = '',
     this.items = const <QuoteItem>[],
   });
 
   final String id;
   final String quoteNumber;
   final String userId;
+
+  /// Datos del cliente (comprador). Nunca confundir con el usuario Auth / taller.
   final String customerName;
   final String customerPhone;
   final String customerEmail;
+  final String customerDocument;
+  final String customerWhatsapp;
+  final String customerAddress;
+  final String customerDepartamento;
+  final String customerProvincia;
+  final String customerDistrito;
+  final String customerReferencia;
+  final String customerRazonSocial;
+  final String customerNombreComercial;
+
   final String vehicleBrand;
   final String vehicleModel;
   final String vehicleYear;
@@ -48,6 +69,47 @@ class Quote {
 
   int get itemCount => items.length;
 
+  /// Mapa de cliente para logs / PDF (equivalente a `quote.customer`).
+  Map<String, String> get customer => <String, String>{
+        'razonSocial': customerRazonSocial,
+        'nombreComercial': customerNombreComercial,
+        'ruc': customerDocument,
+        'contacto': customerName,
+        'telefono': customerPhone,
+        'correo': customerEmail,
+      };
+
+  bool get hasCustomerData =>
+      customerRazonSocial.isNotEmpty ||
+      customerNombreComercial.isNotEmpty ||
+      customerDocument.isNotEmpty ||
+      customerName.isNotEmpty ||
+      customerPhone.isNotEmpty ||
+      customerEmail.isNotEmpty ||
+      customerWhatsapp.isNotEmpty ||
+      customerAddress.isNotEmpty ||
+      customerDepartamento.isNotEmpty ||
+      customerProvincia.isNotEmpty ||
+      customerDistrito.isNotEmpty ||
+      customerReferencia.isNotEmpty;
+
+  /// Filas para PDF (orden fijo). Solo valores no vacíos.
+  List<MapEntry<String, String>> get customerDisplayRows {
+    final List<MapEntry<String, String>> rows = <MapEntry<String, String>>[];
+    void add(String label, String value) {
+      final String v = value.trim();
+      if (v.isNotEmpty) rows.add(MapEntry<String, String>(label, v));
+    }
+
+    add('Razon Social', customerRazonSocial);
+    add('Nombre Comercial', customerNombreComercial);
+    add('RUC', customerDocument);
+    add('Contacto', customerName);
+    add('Telefono', customerPhone);
+    add('Correo', customerEmail);
+    return rows;
+  }
+
   factory Quote.fromMap(String id, Map<String, dynamic> map) {
     final List<QuoteItem> items = <QuoteItem>[];
     final Object? rawItems = map['items'];
@@ -59,14 +121,58 @@ class Quote {
       }
     }
 
+    final Map<String, dynamic> customer = _customerMap(map);
+
     final DateTime now = DateTime.now();
     return Quote(
       id: id,
       quoteNumber: _str(map['quoteNumber']),
       userId: _str(map['userId']),
-      customerName: _str(map['customerName']),
-      customerPhone: _str(map['customerPhone']),
-      customerEmail: _str(map['customerEmail']),
+      customerDocument: _str(
+        customer['ruc'] ??
+            customer['document'] ??
+            customer['documento'] ??
+            map['customerDocument'] ??
+            map['customerRuc'],
+      ),
+      customerWhatsapp: _str(
+        customer['whatsapp'] ?? map['customerWhatsapp'],
+      ),
+      customerAddress: _str(
+        customer['address'] ??
+            customer['direccion'] ??
+            map['customerAddress'],
+      ),
+      customerDepartamento: _str(
+        customer['departamento'] ?? map['customerDepartamento'],
+      ),
+      customerProvincia: _str(
+        customer['provincia'] ?? map['customerProvincia'],
+      ),
+      customerDistrito: _str(
+        customer['distrito'] ?? map['customerDistrito'],
+      ),
+      customerReferencia: _str(
+        customer['referencia'] ?? map['customerReferencia'],
+      ),
+      customerRazonSocial: _str(
+        customer['razonSocial'] ?? map['customerRazonSocial'],
+      ),
+      customerNombreComercial: _str(
+        customer['nombreComercial'] ?? map['customerNombreComercial'],
+      ),
+      customerName: _str(
+        customer['contacto'] ??
+            customer['name'] ??
+            customer['nombre'] ??
+            map['customerName'],
+      ),
+      customerPhone: _str(
+        customer['telefono'] ?? customer['phone'] ?? map['customerPhone'],
+      ),
+      customerEmail: _str(
+        customer['correo'] ?? customer['email'] ?? map['customerEmail'],
+      ),
       vehicleBrand: _str(map['vehicleBrand']),
       vehicleModel: _str(map['vehicleModel']),
       vehicleYear: _str(map['vehicleYear']),
@@ -88,6 +194,23 @@ class Quote {
       'customerName': customerName.trim(),
       'customerPhone': customerPhone.trim(),
       'customerEmail': customerEmail.trim().toLowerCase(),
+      'customerDocument': customerDocument.trim(),
+      'customerWhatsapp': customerWhatsapp.trim(),
+      'customerAddress': customerAddress.trim(),
+      'customerDepartamento': customerDepartamento.trim(),
+      'customerProvincia': customerProvincia.trim(),
+      'customerDistrito': customerDistrito.trim(),
+      'customerReferencia': customerReferencia.trim(),
+      'customerRazonSocial': customerRazonSocial.trim(),
+      'customerNombreComercial': customerNombreComercial.trim(),
+      'customer': <String, dynamic>{
+        'razonSocial': customerRazonSocial.trim(),
+        'nombreComercial': customerNombreComercial.trim(),
+        'ruc': customerDocument.trim(),
+        'contacto': customerName.trim(),
+        'telefono': customerPhone.trim(),
+        'correo': customerEmail.trim().toLowerCase(),
+      },
       'vehicleBrand': vehicleBrand.trim(),
       'vehicleModel': vehicleModel.trim(),
       'vehicleYear': vehicleYear.trim(),
@@ -113,6 +236,15 @@ class Quote {
     String? customerName,
     String? customerPhone,
     String? customerEmail,
+    String? customerDocument,
+    String? customerWhatsapp,
+    String? customerAddress,
+    String? customerDepartamento,
+    String? customerProvincia,
+    String? customerDistrito,
+    String? customerReferencia,
+    String? customerRazonSocial,
+    String? customerNombreComercial,
     String? vehicleBrand,
     String? vehicleModel,
     String? vehicleYear,
@@ -132,6 +264,16 @@ class Quote {
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
       customerEmail: customerEmail ?? this.customerEmail,
+      customerDocument: customerDocument ?? this.customerDocument,
+      customerWhatsapp: customerWhatsapp ?? this.customerWhatsapp,
+      customerAddress: customerAddress ?? this.customerAddress,
+      customerDepartamento: customerDepartamento ?? this.customerDepartamento,
+      customerProvincia: customerProvincia ?? this.customerProvincia,
+      customerDistrito: customerDistrito ?? this.customerDistrito,
+      customerReferencia: customerReferencia ?? this.customerReferencia,
+      customerRazonSocial: customerRazonSocial ?? this.customerRazonSocial,
+      customerNombreComercial:
+          customerNombreComercial ?? this.customerNombreComercial,
       vehicleBrand: vehicleBrand ?? this.vehicleBrand,
       vehicleModel: vehicleModel ?? this.vehicleModel,
       vehicleYear: vehicleYear ?? this.vehicleYear,
@@ -144,6 +286,14 @@ class Quote {
       updatedAt: updatedAt ?? this.updatedAt,
       items: items ?? this.items,
     );
+  }
+
+  static Map<String, dynamic> _customerMap(Map<String, dynamic> map) {
+    final Object? raw = map['customer'];
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    return const <String, dynamic>{};
   }
 
   static String _str(Object? value) =>

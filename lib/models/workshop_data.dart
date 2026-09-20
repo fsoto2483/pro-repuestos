@@ -85,6 +85,12 @@ class WorkshopData {
     };
   }
 
+  @override
+  String toString() =>
+      'WorkshopData(razonSocial: $razonSocial, nombreComercial: $nombreComercial, '
+      'ruc: $ruc, telefono: $telefono, whatsapp: $whatsapp, correo: $correo, '
+      'direccion: $direccion)';
+
   WorkshopData copyWith({
     String? razonSocial,
     String? nombreComercial,

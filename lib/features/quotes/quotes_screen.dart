@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
 import '../../models/quote.dart';
+import '../../services/pdf_quote_service.dart';
 import '../../services/quote_service.dart';
 import '../../state/auth_controller.dart';
 import '../../state/quotes_controller.dart';
@@ -30,6 +31,8 @@ class _QuotesScreenState extends State<QuotesScreen> {
   late Stream<List<Quote>> _quotesStream;
   String? _userId;
   late QuoteService _service;
+  final PdfQuoteService _pdfService = PdfQuoteService();
+  String? _generatingQuoteId;
 
   @override
   void initState() {
@@ -43,6 +46,37 @@ class _QuotesScreenState extends State<QuotesScreen> {
     setState(() {
       _quotesStream = _service.watchUserQuotes(_userId);
     });
+  }
+
+  Future<void> _generatePdf(Quote quote) async {
+    debugPrint('PDF UI: Generar PDF quoteId=${quote.id}');
+    if (quote.items.isEmpty) {
+      _snack('No existen productos para generar la cotización.');
+      return;
+    }
+
+    setState(() => _generatingQuoteId = quote.id);
+    _snack('Generando PDF...');
+
+    try {
+      await _pdfService.downloadQuotePdf(quote);
+      if (!mounted) return;
+      _snack('PDF generado correctamente.');
+    } catch (e, s) {
+      debugPrint('PDF ERROR: $e');
+      debugPrintStack(stackTrace: s);
+      if (!mounted) return;
+      _snack('PDF ERROR: $e');
+    } finally {
+      if (mounted) setState(() => _generatingQuoteId = null);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -95,7 +129,9 @@ class _QuotesScreenState extends State<QuotesScreen> {
                   final Quote quote = quotes[index];
                   return _QuoteTile(
                     quote: quote,
+                    generating: _generatingQuoteId == quote.id,
                     onTap: () => QuoteDetailScreen.open(context, quote.id),
+                    onGeneratePdf: () => _generatePdf(quote),
                   );
                 },
               );
@@ -108,10 +144,17 @@ class _QuotesScreenState extends State<QuotesScreen> {
 }
 
 class _QuoteTile extends StatelessWidget {
-  const _QuoteTile({required this.quote, required this.onTap});
+  const _QuoteTile({
+    required this.quote,
+    required this.onTap,
+    required this.onGeneratePdf,
+    required this.generating,
+  });
 
   final Quote quote;
   final VoidCallback onTap;
+  final VoidCallback onGeneratePdf;
+  final bool generating;
 
   static final DateFormat _dateFmt = DateFormat('d MMM yyyy · HH:mm', 'es');
 
@@ -125,62 +168,85 @@ class _QuoteTile extends StatelessWidget {
         side: BorderSide(color: theme.colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.brand.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.receipt_long_rounded,
-                  color: AppColors.brand,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      quote.quoteNumber.isNotEmpty
-                          ? quote.quoteNumber
-                          : quote.customerName,
-                      style: theme.textTheme.titleSmall,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.brand.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_dateFmt.format(quote.createdAt)} · '
-                      '${Formatters.plural(quote.itemCount, 'referencia', 'referencias')}',
-                      style: theme.textTheme.bodySmall,
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: AppColors.brand,
                     ),
-                    if (quote.customerName.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: 2),
-                      Text(
-                        quote.customerName,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          quote.quoteNumber.isNotEmpty
+                              ? quote.quoteNumber
+                              : quote.customerName,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${_dateFmt.format(quote.createdAt)} · '
+                          '${Formatters.plural(quote.itemCount, 'referencia', 'referencias')}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (quote.customerName.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: 2),
+                          Text(
+                            quote.customerName,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Text(
+                    Formatters.price(quote.total),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: AppColors.brand,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right_rounded, size: 20),
+                ],
               ),
-              Text(
-                Formatters.price(quote.total),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: AppColors.brand,
-                ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, size: 20),
-            ],
+            ),
           ),
-        ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonalIcon(
+                onPressed: generating ? null : onGeneratePdf,
+                icon: generating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: Text(generating ? 'Generando PDF...' : 'Generar PDF'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

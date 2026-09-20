@@ -32,6 +32,9 @@ class QuoteService {
     required double subtotal,
     required double igv,
     required double total,
+    String customerRazonSocial = '',
+    String customerNombreComercial = '',
+    String customerRuc = '',
     String vehicleBrand = '',
     String vehicleModel = '',
     String vehicleYear = '',
@@ -47,12 +50,32 @@ class QuoteService {
     final String quoteNumber = _generateQuoteNumber();
     final DateTime now = DateTime.now();
 
+    final String razon = customerRazonSocial.trim();
+    final String comercial = customerNombreComercial.trim();
+    final String ruc = customerRuc.trim();
+    final String contacto = customerName.trim();
+    final String telefono = customerPhone.trim();
+    final String correo = customerEmail.trim().toLowerCase();
+
+    final Map<String, dynamic> customer = <String, dynamic>{
+      'razonSocial': razon,
+      'nombreComercial': comercial,
+      'ruc': ruc,
+      'contacto': contacto,
+      'telefono': telefono,
+      'correo': correo,
+    };
+
     final Map<String, dynamic> data = <String, dynamic>{
       'quoteNumber': quoteNumber,
       'userId': uid,
-      'customerName': customerName.trim(),
-      'customerPhone': customerPhone.trim(),
-      'customerEmail': customerEmail.trim().toLowerCase(),
+      'customer': customer,
+      'customerName': contacto,
+      'customerPhone': telefono,
+      'customerEmail': correo,
+      'customerDocument': ruc,
+      'customerRazonSocial': razon,
+      'customerNombreComercial': comercial,
       'vehicleBrand': vehicleBrand.trim(),
       'vehicleModel': vehicleModel.trim(),
       'vehicleYear': vehicleYear.trim(),
@@ -68,6 +91,7 @@ class QuoteService {
 
     await doc.set(data);
     debugPrint('QUOTE SAVED: ${doc.id}');
+    debugPrint('CLIENTE GUARDADO: $customer');
 
     final Quote? saved = await getQuote(doc.id);
     return saved ??
@@ -75,9 +99,12 @@ class QuoteService {
           id: doc.id,
           quoteNumber: quoteNumber,
           userId: uid,
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          customerEmail: customerEmail.trim().toLowerCase(),
+          customerName: contacto,
+          customerPhone: telefono,
+          customerEmail: correo,
+          customerDocument: ruc,
+          customerRazonSocial: razon,
+          customerNombreComercial: comercial,
           vehicleBrand: vehicleBrand.trim(),
           vehicleModel: vehicleModel.trim(),
           vehicleYear: vehicleYear.trim(),
