@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,9 +6,13 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../core/utils/responsive.dart';
+import '../../core/web/popup_stub.dart'
+    if (dart.library.html) '../../core/web/popup_web.dart';
 import '../../data/models/cart_item.dart';
 import '../../models/quote.dart';
 import '../../models/workshop_data.dart';
+import '../../services/pdf_quote_service.dart';
+import '../../services/whatsapp_quote_service.dart';
 import '../../services/workshop_service.dart';
 import '../../state/auth_controller.dart';
 import '../../state/cart_controller.dart';
@@ -19,7 +24,7 @@ import '../quotes/quotes_screen.dart';
 
 /// Confirma la cotización usando los datos del perfil (`users/{uid}.workshop`).
 ///
-/// No vuelve a pedir datos del cliente: se toman del taller del usuario.
+/// Flujo comercial: Firestore → PDF → descarga → WhatsApp → Mis Cotizaciones.
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -35,9 +40,11 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final WorkshopService _workshopService = const WorkshopService();
+  final PdfQuoteService _pdfService = const PdfQuoteService();
 
   WorkshopData? _workshop;
   bool _loadingProfile = true;
+  bool _processing = false;
   String? _profileError;
 
   @override
@@ -105,6 +112,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await _loadProfile();
   }
 
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _confirm() async {
     final CartController cart = context.read<CartController>();
     final QuotesController quotes = context.read<QuotesController>();
@@ -112,9 +126,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final WorkshopData? workshop = _workshop;
 
     if (cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La cotizacion esta vacia.')),
-      );
+      _snack('La cotizacion esta vacia.');
       return;
     }
 
@@ -123,39 +135,81 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    final Quote? saved = await quotes.confirmQuote(
-      cart: cart,
-      customerRazonSocial: workshop!.razonSocial,
-      customerNombreComercial: workshop.nombreComercial,
-      customerRuc: workshop.ruc,
-      customerName: _contacto(workshop),
-      customerPhone: workshop.telefono,
-      customerEmail: _correo(workshop),
-      vehicleBrand: catalog.selectedMake?.name ?? '',
-      vehicleModel: catalog.selectedModel?.name ?? '',
-      vehicleYear: '',
-      vehicleEngine: catalog.selectedEngine?.name ?? '',
-    );
-
-    if (!mounted) return;
-
-    if (saved == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(quotes.error ?? 'No se pudo guardar la cotizacion.'),
-        ),
-      );
-      return;
+    // Abrir popup YA (gesto del usuario) para evitar bloqueo en Web.
+    final WebPopup? popup = kIsWeb ? openPopup() : null;
+    if (kIsWeb) {
+      debugPrint('WHATSAPP WEB POPUP CREATED');
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cotización guardada correctamente')),
-    );
+    setState(() => _processing = true);
 
-    // Sale del checkout y abre Mis Cotizaciones.
-    Navigator.of(context).pop();
-    if (!mounted) return;
-    await QuotesScreen.open(context);
+    try {
+      // PASO 1: Firestore
+      final Quote? saved = await quotes.confirmQuote(
+        cart: cart,
+        customerRazonSocial: workshop!.razonSocial,
+        customerNombreComercial: workshop.nombreComercial,
+        customerRuc: workshop.ruc,
+        customerName: _contacto(workshop),
+        customerPhone: workshop.telefono,
+        customerEmail: _correo(workshop),
+        vehicleBrand: catalog.selectedMake?.name ?? '',
+        vehicleModel: catalog.selectedModel?.name ?? '',
+        vehicleYear: '',
+        vehicleEngine: catalog.selectedEngine?.name ?? '',
+      );
+
+      if (!mounted) return;
+
+      if (saved == null) {
+        popup?.close();
+        _snack(quotes.error ?? 'No se pudo guardar la cotizacion.');
+        return;
+      }
+
+      _snack('Cotización guardada correctamente');
+
+      // PASO 2 + 3: generar y descargar PDF
+      try {
+        await _pdfService.downloadQuotePdf(saved);
+      } catch (e, s) {
+        debugPrint('PDF ERROR tras confirmar: $e');
+        debugPrintStack(stackTrace: s);
+        if (mounted) {
+          _snack('PDF ERROR: $e');
+        }
+      }
+
+      // PASO 4: WhatsApp
+      final String whatsappUrl = WhatsAppQuoteService.buildWhatsAppUrl(saved);
+      debugPrint('WHATSAPP URL: $whatsappUrl');
+
+      if (kIsWeb) {
+        if (popup == null) {
+          _snack(
+            'El navegador bloqueó la ventana emergente. '
+            'Permita popups para este sitio.',
+          );
+        } else {
+          debugPrint('REDIRECTING POPUP TO WHATSAPP');
+          popup.redirect(whatsappUrl);
+        }
+      } else {
+        try {
+          await WhatsAppQuoteService.openQuoteWhatsApp(saved);
+        } catch (e, s) {
+          debugPrint('WhatsApp ERROR tras confirmar: $e');
+          debugPrintStack(stackTrace: s);
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      if (!mounted) return;
+      await QuotesScreen.open(context);
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
   }
 
   @override
@@ -257,8 +311,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         _TotalsCard(cart: cart),
                         const SizedBox(height: 24),
                         FilledButton.icon(
-                          onPressed: quotes.saving ? null : _confirm,
-                          icon: quotes.saving
+                          onPressed: (quotes.saving || _processing)
+                              ? null
+                              : _confirm,
+                          icon: (quotes.saving || _processing)
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
@@ -269,8 +325,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 )
                               : const Icon(Icons.save_rounded),
                           label: Text(
-                            quotes.saving
-                                ? 'Guardando...'
+                            (quotes.saving || _processing)
+                                ? 'Procesando...'
                                 : 'Confirmar Cotizacion',
                           ),
                         ),
