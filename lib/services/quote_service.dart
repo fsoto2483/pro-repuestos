@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/quote.dart';
+import 'sales_order_service.dart';
 
 /// Persistencia de cotizaciones en la colección `quotes`.
 class QuoteService {
@@ -84,6 +85,7 @@ class QuoteService {
       'status': crmStatus,
       'notes': '',
       'assignedTo': '',
+      'orderId': '',
       'lastContactAt': null,
       'subtotal': subtotal,
       'igv': igv,
@@ -251,33 +253,55 @@ class QuoteService {
       throw ArgumentError('quoteId es obligatorio.');
     }
     final String crmStatus = QuoteStatus.fromString(status).value;
-    await _quotes.doc(quoteId).update(<String, dynamic>{
+    final Map<String, dynamic> payload = <String, dynamic>{
       'status': crmStatus,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    await _runQuoteUpdate(
+      quoteId: quoteId,
+      payload: payload,
+      op: 'updateQuoteStatus',
+      statusBefore: null,
+      statusAfter: crmStatus,
+    );
+    await _maybeCreateOrderFromWon(quoteId, crmStatus);
   }
 
   Future<void> updateQuoteNotes(String quoteId, String notes) async {
     if (quoteId.isEmpty) {
       throw ArgumentError('quoteId es obligatorio.');
     }
-    await _quotes.doc(quoteId).update(<String, dynamic>{
+    final Map<String, dynamic> payload = <String, dynamic>{
       'notes': notes.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    await _runQuoteUpdate(
+      quoteId: quoteId,
+      payload: payload,
+      op: 'updateQuoteNotes',
+      statusBefore: null,
+      statusAfter: null,
+    );
   }
 
   Future<void> updateLastContact(String quoteId) async {
     if (quoteId.isEmpty) {
       throw ArgumentError('quoteId es obligatorio.');
     }
-    await _quotes.doc(quoteId).update(<String, dynamic>{
+    final Map<String, dynamic> payload = <String, dynamic>{
       'lastContactAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    await _runQuoteUpdate(
+      quoteId: quoteId,
+      payload: payload,
+      op: 'updateLastContact',
+      statusBefore: null,
+      statusAfter: null,
+    );
   }
 
-  /// Guarda seguimiento CRM (estado + notas) en una sola escritura.
+  /// Guarda seguimiento CRM (estado + notas + lastContactAt) en una escritura.
   Future<void> saveQuoteFollowUp({
     required String quoteId,
     required String status,
@@ -286,11 +310,92 @@ class QuoteService {
     if (quoteId.isEmpty) {
       throw ArgumentError('quoteId es obligatorio.');
     }
-    await _quotes.doc(quoteId).update(<String, dynamic>{
-      'status': QuoteStatus.fromString(status).value,
+    final String crmStatus = QuoteStatus.fromString(status).value;
+    final Quote? before = await getQuote(quoteId);
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'status': crmStatus,
       'notes': notes.trim(),
+      'lastContactAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    await _runQuoteUpdate(
+      quoteId: quoteId,
+      payload: payload,
+      op: 'saveQuoteFollowUp',
+      statusBefore: before?.status,
+      statusAfter: crmStatus,
+    );
+    await _maybeCreateOrderFromWon(quoteId, crmStatus);
+  }
+
+  Future<void> _runQuoteUpdate({
+    required String quoteId,
+    required Map<String, dynamic> payload,
+    required String op,
+    required String? statusBefore,
+    required String? statusAfter,
+  }) async {
+    final User? authUser = FirebaseAuth.instance.currentUser;
+    debugPrint('AUTH UID: ${authUser?.uid}');
+    bool isAdmin = false;
+    try {
+      if (authUser != null) {
+        final DocumentSnapshot<Map<String, dynamic>> userSnap =
+            await _db.collection('users').doc(authUser.uid).get();
+        final Object? role = userSnap.data()?['role'];
+        isAdmin = role == 'admin';
+        debugPrint('USER ROLE DOC: $role');
+      }
+    } catch (e) {
+      debugPrint('USER ROLE LOOKUP ERROR: $e');
+    }
+    debugPrint('IS ADMIN: $isAdmin');
+    if (statusBefore != null) {
+      debugPrint('QUOTE STATUS BEFORE: $statusBefore');
+    }
+    if (statusAfter != null) {
+      debugPrint('QUOTE STATUS AFTER: $statusAfter');
+    }
+    debugPrint('FIRESTORE UPDATE START op=$op');
+    debugPrint('DOCUMENT: quotes/$quoteId');
+    debugPrint('DATA: $payload');
+    try {
+      await _quotes.doc(quoteId).update(payload);
+      debugPrint('FIRESTORE UPDATE OK op=$op quotes/$quoteId');
+    } on FirebaseException catch (e) {
+      debugPrint('FIRESTORE CODE: ${e.code}');
+      debugPrint('FIRESTORE MESSAGE: ${e.message}');
+      debugPrint('FIRESTORE OP FAILED: $op quotes/$quoteId');
+      rethrow;
+    }
+  }
+
+  /// Si la cotización pasa a Venta Cerrada, genera el pedido (una sola vez).
+  Future<void> _maybeCreateOrderFromWon(
+    String quoteId,
+    String crmStatus,
+  ) async {
+    if (QuoteStatus.fromString(crmStatus) != QuoteStatus.won) return;
+    debugPrint('ORDER AUTO-CREATE START quoteId=$quoteId');
+    try {
+      final Quote? quote = await getQuote(quoteId);
+      if (quote == null) {
+        debugPrint('ORDER AUTO-CREATE SKIP: quote not found');
+        return;
+      }
+      await const SalesOrderService().createOrderFromQuote(quote);
+      debugPrint('ORDER AUTO-CREATE OK quoteId=$quoteId');
+    } on FirebaseException catch (e) {
+      debugPrint('FIRESTORE CODE: ${e.code}');
+      debugPrint('FIRESTORE MESSAGE: ${e.message}');
+      debugPrint('FIRESTORE OP FAILED: createOrderFromQuote quoteId=$quoteId');
+      debugPrint('ORDER AUTO-CREATE ERROR: $e');
+      rethrow;
+    } catch (e, s) {
+      debugPrint('ORDER AUTO-CREATE ERROR: $e');
+      debugPrintStack(stackTrace: s);
+      rethrow;
+    }
   }
 
   String _generateQuoteNumber() {

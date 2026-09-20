@@ -262,7 +262,7 @@ service cloud.firestore {
     }
 
     match /quotes/{quoteId} {
-      // CRM: status, notes, lastContactAt, assignedTo.
+      // CRM: status, notes, lastContactAt, assignedTo, orderId.
       // Cliente lee solo las suyas; admin lee todas.
       allow read: if isAuthenticated() && hasUserDoc() && (
         (isActive() && resource.data.userId == request.auth.uid) ||
@@ -281,6 +281,7 @@ service cloud.firestore {
         return quoteCrmStatusLocked()
           && request.resource.data.get('notes', '') == resource.data.get('notes', '')
           && request.resource.data.get('assignedTo', '') == resource.data.get('assignedTo', '')
+          && request.resource.data.get('orderId', '') == resource.data.get('orderId', '')
           && (
             (!('lastContactAt' in resource.data)
               && !('lastContactAt' in request.resource.data))
@@ -310,18 +311,35 @@ service cloud.firestore {
         && request.resource.data.get('notes', '') == ''
         && request.resource.data.get('assignedTo', '') == '';
 
+      // Admin: puede actualizar status, notes, lastContactAt, orderId (CRM completo).
       // Dueño: puede actualizar su cotización pero NO campos CRM.
-      allow update: if isActive()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId
-        && quoteCrmFieldsLocked();
+      allow update: if isAdmin()
+        || (
+          isActive()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && quoteCrmFieldsLocked()
+        );
 
-      // Admin: puede actualizar status, notes, lastContactAt (y resto).
-      allow update: if isAdmin();
+      allow delete: if isAdmin()
+        || (isActive() && resource.data.userId == request.auth.uid);
+    }
 
-      allow delete: if isActive() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
+    match /sales_orders/{orderId} {
+      // Admin: read/write completo.
+      // Cliente: solo lectura de sus OV (customerId == auth.uid).
+      // Cliente NO puede modificar status, trackingNotes, assignedDriver, placa.
+      allow read: if isAdmin()
+        || (
+          isActive()
+          && resource.data.customerId == request.auth.uid
+        );
+
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.quoteId == resource.data.quoteId;
+      allow delete: if isAdmin();
     }
   }
 }

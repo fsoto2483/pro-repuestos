@@ -14,10 +14,12 @@ import '../../state/catalog_controller.dart';
 import '../../state/quotes_controller.dart';
 import '../../widgets/common.dart';
 import '../../widgets/product_cover.dart';
+import '../admin/admin_orders_screen.dart';
 import '../admin/admin_quotes_screen.dart';
 import '../admin/users_admin_screen.dart';
 import '../debug/firestore_test_screen.dart';
 import '../import/bulk_import_screen.dart';
+import '../orders/orders_screen.dart';
 import '../product/product_detail_screen.dart';
 import '../quotes/quotes_screen.dart';
 import 'workshop_profile_screen.dart';
@@ -122,6 +124,12 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Gestion y seguimiento comercial',
                       onTap: () => AdminQuotesScreen.open(context),
                     ),
+                    _Option(
+                      icon: Icons.point_of_sale_rounded,
+                      title: 'Ventas',
+                      subtitle: 'Órdenes de venta y logística',
+                      onTap: () => AdminOrdersScreen.open(context),
+                    ),
                     const _Option(
                       icon: Icons.inventory_2_outlined,
                       title: 'Inventario',
@@ -131,7 +139,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 26),
               ],
-              Text('Cuenta', style: Theme.of(context).textTheme.titleLarge),
+              Text('Mi Cuenta', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 12),
               _OptionsCard(
                 options: <_Option>[
@@ -143,11 +151,17 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   _Option(
                     icon: Icons.receipt_long_rounded,
-                    title: 'Mis cotizaciones',
+                    title: 'Mis Cotizaciones',
                     subtitle: quotes.count == 0
                         ? 'Historial de cotizaciones guardadas'
                         : '${Formatters.plural(quotes.count, 'cotizacion', 'cotizaciones')} guardadas',
                     onTap: () => QuotesScreen.open(context),
+                  ),
+                  _Option(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Mis Pedidos',
+                    subtitle: 'Seguimiento de tus pedidos y entregas',
+                    onTap: () => OrdersScreen.open(context),
                   ),
                   const _Option(
                     icon: Icons.percent_rounded,

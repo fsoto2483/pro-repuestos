@@ -38,6 +38,7 @@ class Quote {
     this.customerNombreComercial = '',
     this.notes = '',
     this.assignedTo = '',
+    this.orderId = '',
     this.lastContactAt,
     this.items = const <QuoteItem>[],
   });
@@ -69,6 +70,8 @@ class Quote {
   final String status;
   final String notes;
   final String assignedTo;
+  /// Pedido generado al cerrar venta (`sales_orders/{orderId}`).
+  final String orderId;
   final DateTime? lastContactAt;
 
   final double subtotal;
@@ -193,6 +196,7 @@ class Quote {
       status: QuoteStatus.fromString(_str(map['status'])).value,
       notes: _str(map['notes']),
       assignedTo: _str(map['assignedTo']),
+      orderId: _str(map['orderId']),
       lastContactAt: _date(map['lastContactAt']),
       subtotal: _double(map['subtotal']),
       igv: _double(map['igv']),
@@ -236,6 +240,7 @@ class Quote {
           : status.trim(),
       'notes': notes.trim(),
       'assignedTo': assignedTo.trim(),
+      'orderId': orderId.trim(),
       'lastContactAt': lastContactAt == null
           ? null
           : Timestamp.fromDate(lastContactAt!),
@@ -275,6 +280,7 @@ class Quote {
     String? status,
     String? notes,
     String? assignedTo,
+    String? orderId,
     DateTime? lastContactAt,
     bool clearLastContactAt = false,
     double? subtotal,
@@ -308,6 +314,7 @@ class Quote {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       assignedTo: assignedTo ?? this.assignedTo,
+      orderId: orderId ?? this.orderId,
       lastContactAt:
           clearLastContactAt ? null : (lastContactAt ?? this.lastContactAt),
       subtotal: subtotal ?? this.subtotal,
